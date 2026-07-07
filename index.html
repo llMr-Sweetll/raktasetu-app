@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#7A1626" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="description" content="RaktaSetu - Connect. Donate. Save Lives." />
+    <link rel="icon" type="image/svg+xml" href="/raktasetu-app/drop-icon.svg" />
+    <link rel="apple-touch-icon" href="/raktasetu-app/drop-icon.svg" />
+    <link rel="manifest" href="/raktasetu-app/manifest.json" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Anek+Latin:wght@400;500;600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <title>RaktaSetu</title>
+    <style>
+      * { -webkit-tap-highlight-color: transparent; }
+      body { overscroll-behavior-y: none; }
+    </style>
+    <script type="module" crossorigin src="/raktasetu-app/assets/index-CfRcmVK2.js"></script>
+    <link rel="stylesheet" crossorigin href="/raktasetu-app/assets/index-BfsA4cFa.css">
+  </head>
+  <body>
+    <div id="root"><div style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:system-ui,sans-serif;color:#6F6963;">Loading RaktaSetu...</div></div>
+    <div id="error-log" style="display:none; position:fixed; top:0; left:0; width:100%; padding:20px; background:#7A1626; color:#fff; font-family:monospace; font-size:13px; z-index:9999; white-space:pre-wrap;"></div>
+    <script>
+      (function() {
+        var log = document.getElementById('error-log');
+        function showError(msg, url, line, col, err) {
+          log.style.display = 'block';
+          log.textContent = 'ERROR: ' + msg + '\nURL: ' + url + '\nLine: ' + line + ':' + col + '\nStack: ' + (err && err.stack ? err.stack : 'N/A');
+        }
+        window.onerror = function(msg, url, line, col, err) { showError(msg, url, line, col, err); };
+        window.onunhandledrejection = function(e) { showError('Unhandled Promise: ' + (e.reason && e.reason.message ? e.reason.message : e.reason), '', 0, 0, e.reason); };
+      })();
+    </script>
+  </body>
+</html>
