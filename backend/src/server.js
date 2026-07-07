@@ -110,7 +110,12 @@ app.use((req, res) => {
  */
 app.use((err, req, res, next) => {
   console.error('Express error:', err);
-  res.status(500).json({ success: false, error: 'Internal server error' });
+  const isDev = process.env.NODE_ENV !== 'production';
+  res.status(err.status || 500).json({
+    success: false,
+    error: isDev ? (err.message || 'Internal server error') : 'Internal server error',
+    ...(isDev && err.stack ? { stack: err.stack } : {})
+  });
 });
 
 /**

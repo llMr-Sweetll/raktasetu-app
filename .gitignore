@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+*/node_modules/
+.pnpm-store/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+*/dist/
+!frontend/dist/
+!frontend/dist/**/*
+
+# Capacitor generated native projects (keep config, ignore build artifacts)
+frontend/ios/App/Pods/
+frontend/ios/App/build/
+frontend/ios/App/DerivedData/
+frontend/android/app/build/
+frontend/android/.gradle/
+frontend/android/captures/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local DB files
+*.sqlite
+*.sqlite3
+
+# Test artifacts
+coverage/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Cloudflare worker (deprecated - using Express backend)
+worker.js
