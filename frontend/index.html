@@ -21,7 +21,19 @@
     </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:system-ui,sans-serif;color:#6F6963;">Loading RaktaSetu...</div></div>
+    <div id="error-log" style="display:none; position:fixed; top:0; left:0; width:100%; padding:20px; background:#7A1626; color:#fff; font-family:monospace; font-size:13px; z-index:9999; white-space:pre-wrap;"></div>
+    <script>
+      (function() {
+        var log = document.getElementById('error-log');
+        function showError(msg, url, line, col, err) {
+          log.style.display = 'block';
+          log.textContent = 'ERROR: ' + msg + '\nURL: ' + url + '\nLine: ' + line + ':' + col + '\nStack: ' + (err && err.stack ? err.stack : 'N/A');
+        }
+        window.onerror = function(msg, url, line, col, err) { showError(msg, url, line, col, err); };
+        window.onunhandledrejection = function(e) { showError('Unhandled Promise: ' + (e.reason && e.reason.message ? e.reason.message : e.reason), '', 0, 0, e.reason); };
+      })();
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
