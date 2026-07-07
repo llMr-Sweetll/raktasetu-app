@@ -101,7 +101,11 @@ router.get('/dashboard', async (req, res) => {
           next_eligible_date: user?.next_eligible_date || null,
           blood_group: user?.blood_group || null
         },
-        nearby_requests: nearbyRequests
+        nearby_requests: nearbyRequests,
+        // Frontend compatibility aliases
+        credits: parseInt(stats.credit_balance) || 0,
+        eligible: !user?.next_eligible_date || new Date(user.next_eligible_date) <= new Date(),
+        is_on_call: user?.is_on_call || false
       }
     });
   } catch (err) {

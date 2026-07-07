@@ -99,7 +99,7 @@ export default function Console() {
                       </p>
                     </div>
                   </div>
-                  <Chip tone={req.urgency === 'Critical' ? 'red' : req.urgency === 'Urgent' ? 'gold' : 'line'} dark>{req.urgency}</Chip>
+                  <Chip tone={req.urgency === 'critical' ? 'red' : req.urgency === 'urgent' ? 'gold' : 'line'} dark>{req.urgency}</Chip>
                 </div>
                 <div style={{ height: 6, borderRadius: 99, background: T.consoleLine, margin: '14px 0 8px', overflow: 'hidden' }}>
                   <div style={{ width: `${Math.min(100, (req.filled_units / req.units_needed) * 100)}%`, height: '100%', background: '#E4506B' }} />
@@ -107,8 +107,8 @@ export default function Console() {
                 <div style={{ display: 'flex', gap: 14 }}>
                   {[
                     [req.donors_pinged || '0', 'pinged'],
-                    [req.donors_accepted || '0', 'accepted'],
-                    [req.donors_arrived || '0', 'arrived'],
+                    [req.accepted_count || '0', 'accepted'],
+                    [req.arrived_count || '0', 'arrived'],
                     [`${req.filled_units || 0} / ${req.units_needed}`, 'collected'],
                   ].map(([n, l]) => (
                     <div key={l}>

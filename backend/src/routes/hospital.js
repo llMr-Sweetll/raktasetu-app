@@ -58,7 +58,9 @@ router.get('/dashboard', async (req, res) => {
     const requestsResult = await query(
       `SELECT br.*,
         (SELECT COUNT(*) FROM donor_responses dr WHERE dr.request_id = br.id AND dr.status = 'accepted') AS accepted_count,
-        (SELECT COUNT(*) FROM donor_responses dr WHERE dr.request_id = br.id AND dr.status = 'arrived') AS arrived_count
+        (SELECT COUNT(*) FROM donor_responses dr WHERE dr.request_id = br.id AND dr.status = 'arrived') AS arrived_count,
+        (SELECT COUNT(*) FROM donor_responses dr WHERE dr.request_id = br.id) AS donors_pinged,
+        (SELECT COALESCE(SUM(units), 0) FROM donations d WHERE d.request_id = br.id AND d.verified_at IS NOT NULL) AS filled_units
        FROM blood_requests br
        WHERE br.hospital_id = $1 AND br.status IN ('open', 'filled')
        ORDER BY br.created_at DESC`,
@@ -91,7 +93,9 @@ router.get('/dashboard', async (req, res) => {
         hospital_id: hospitalId,
         stats: statsResult.rows[0],
         active_requests: requestsResult.rows,
-        recent_donations: donationsResult.rows
+        recent_donations: donationsResult.rows,
+        // Frontend compatibility alias
+        requests: requestsResult.rows
       }
     });
   } catch (err) {
@@ -186,6 +190,60 @@ router.post('/requests', async (req, res) => {
   } catch (err) {
     console.error('Create request error:', err);
     return res.status(500).json({ success: false, error: 'Failed to create request' });
+  }
+});
+
+/**
+ * GET /api/hospital/requests
+ * Search requests by ref code (for QR/manual verification)
+ */
+router.get('/requests', async (req, res) => {
+  try {
+    const hospitalResult = await query('SELECT id FROM hospitals WHERE user_id = $1', [req.user.id]);
+    if (hospitalResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Hospital profile not found' });
+    }
+    const hospitalId = hospitalResult.rows[0].id;
+    const { ref } = req.query;
+
+    if (ref) {
+      const requestResult = await query(
+        `SELECT br.*, u.name AS donor_name, dr.donor_id, dr.status AS donor_status, dr.responded_at
+         FROM blood_requests br
+         LEFT JOIN donor_responses dr ON dr.request_id = br.id AND dr.status = 'arrived'
+         LEFT JOIN users u ON u.id = dr.donor_id
+         WHERE br.ref_code = $1 AND br.hospital_id = $2
+         ORDER BY dr.responded_at DESC LIMIT 1`,
+        [ref, hospitalId]
+      );
+      if (requestResult.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Request not found' });
+      }
+      const row = requestResult.rows[0];
+      return res.json({
+        success: true,
+        data: {
+          donor: row.donor_id ? {
+            id: row.donor_id,
+            name: row.donor_name,
+            blood_group: row.blood_group,
+            ref_code: row.ref_code,
+            request_id: row.id,
+            responded_at: row.responded_at
+          } : null
+        }
+      });
+    }
+
+    // No ref provided — list all requests
+    const requestsResult = await query(
+      `SELECT br.* FROM blood_requests br WHERE br.hospital_id = $1 ORDER BY br.created_at DESC`,
+      [hospitalId]
+    );
+    return res.json({ success: true, data: { requests: requestsResult.rows } });
+  } catch (err) {
+    console.error('Search request error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to search requests' });
   }
 });
 

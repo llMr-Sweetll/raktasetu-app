@@ -85,7 +85,7 @@ export default function DonorAlert() {
             <Chip tone="red">{request.urgency}</Chip>
             <p style={{ fontFamily: display, fontWeight: 700, fontSize: 15, margin: '8px 0 0', color: T.ink }}>{request.units_needed} units</p>
             <p style={{ fontFamily: body, fontSize: 12, color: T.mut, margin: '2px 0 0', display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end' }}>
-              <Clock size={12} /> needed by {new Date(request.needed_by).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              <Clock size={12} /> {request.needed_by ? new Date(request.needed_by).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'ASAP'}
             </p>
           </div>
         </div>

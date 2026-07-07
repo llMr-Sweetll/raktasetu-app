@@ -424,6 +424,19 @@ async function seedData() {
     ]);
     console.log('  Reset all user passwords to: password123');
 
+    // Admin user
+    const adminEmail = 'admin@raktasetu.in';
+    const adminExisting = await query('SELECT id FROM users WHERE email = $1', [adminEmail]);
+    if (adminExisting.rows.length === 0) {
+      const adminId = uuidv4();
+      await query(
+        `INSERT INTO users (id, email, phone, password_hash, name, role, city, state, is_verified, is_on_call, ping_radius_km, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())`,
+        [adminId, adminEmail, '+91-00000-00000', password_hash, 'RaktaSetu Admin', 'admin', 'Hubballi', 'Karnataka', true, false, null]
+      );
+      console.log('  Seeded admin: admin@raktasetu.in / password123');
+    }
+
     // 5 more donors around Hubballi (lat ~15.36, lng ~75.12)
     const newDonors = [
       { id: uuidv4(), email: 'anita.k@gmail.com', name: 'Anita Kulkarni', blood_group: 'A+', lat: 15.355, lng: 75.115, is_on_call: true },

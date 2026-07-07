@@ -66,14 +66,14 @@ export default function DonorRequests() {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <span style={{ fontFamily: display, fontWeight: 800, fontSize: 22, color: T.arterial }}>{req.blood_group}</span>
-                  <span style={{ fontFamily: body, fontSize: 11, color: req.urgency === 'Critical' ? T.arterial : req.urgency === 'Urgent' ? T.gold : T.mut, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  <span style={{ fontFamily: body, fontSize: 11, color: req.urgency === 'critical' ? T.arterial : req.urgency === 'urgent' ? T.gold : T.mut, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                     {req.urgency}
                   </span>
                 </div>
                 <p style={{ fontFamily: display, fontWeight: 700, fontSize: 14, margin: 0, color: T.ink }}>{req.hospital_name}</p>
-                <p style={{ fontFamily: body, fontSize: 12, color: T.mut, margin: '2px 0 0' }}>{req.address} · {req.distance_km?.toFixed(1)} km</p>
+                <p style={{ fontFamily: body, fontSize: 12, color: T.mut, margin: '2px 0 0' }}>{req.hospital_address || req.address || req.hospital_name} · {req.distance_km?.toFixed(1)} km</p>
                 <p style={{ fontFamily: body, fontSize: 12, color: T.faint, margin: '4px 0 0', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <Clock size={12} /> {req.units_needed} units · {new Date(req.needed_by).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  <Clock size={12} /> {req.units_needed} units · {req.needed_by ? new Date(req.needed_by).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'ASAP'}
                 </p>
               </div>
               <ChevronRight size={18} color={T.faint} />

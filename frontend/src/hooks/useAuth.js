@@ -19,7 +19,7 @@ export function useAuth() {
       });
       if (!res.ok) throw new Error();
       const data = await res.json();
-      setUser(data.user);
+      setUser(data.data?.user || data.user);
     } catch {
       localStorage.removeItem('token');
       setUser(null);
@@ -32,16 +32,20 @@ export function useAuth() {
 
   const login = async (phone, password) => {
     const { data } = await api.post('/auth/login', { phone, password });
-    localStorage.setItem('token', data.token);
-    setUser(data.user);
-    return data.user;
+    const token = data.data?.token || data.token;
+    const user = data.data?.user || data.user;
+    localStorage.setItem('token', token);
+    setUser(user);
+    return user;
   };
 
   const register = async (payload) => {
     const { data } = await api.post('/auth/register', payload);
-    localStorage.setItem('token', data.token);
-    setUser(data.user);
-    return data.user;
+    const token = data.data?.token || data.token;
+    const user = data.data?.user || data.user;
+    localStorage.setItem('token', token);
+    setUser(user);
+    return user;
   };
 
   const logout = () => {

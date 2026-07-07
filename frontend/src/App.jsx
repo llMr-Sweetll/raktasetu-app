@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth.js';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 
@@ -20,6 +20,9 @@ import DonorRequests from './screens/DonorRequests.jsx';
 import Console from './screens/Console.jsx';
 import ConsoleNewRequest from './screens/ConsoleNewRequest.jsx';
 import ConsoleVerify from './screens/ConsoleVerify.jsx';
+
+/* Admin */
+import AdminDashboard from './screens/AdminDashboard.jsx';
 
 /* Design Tokens */
 export const T = {
@@ -60,6 +63,8 @@ export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/ap
 
 function App() {
   const { user, loading } = useAuth();
+  const location = useLocation();
+  const isAdmin = location.pathname.startsWith('/admin');
 
   if (loading) return (
     <div style={{
@@ -75,11 +80,11 @@ function App() {
       fontFamily: "'Public Sans', 'Segoe UI', system-ui, sans-serif",
       background: T.porcelain, minHeight: '100vh', color: T.ink,
     }}>
-      <div style={{ maxWidth: 430, margin: '0 auto', minHeight: '100vh', position: 'relative' }}>
+      <div style={{ maxWidth: isAdmin ? '100%' : 430, margin: '0 auto', minHeight: '100vh', position: 'relative' }}>
         <Routes>
           {/* Public routes */}
-          <Route path="/login" element={user ? <Navigate to={user.role === 'hospital' ? '/console' : '/home'} /> : <Login />} />
-          <Route path="/register" element={user ? <Navigate to={user.role === 'hospital' ? '/console' : '/home'} /> : <Register />} />
+          <Route path="/login" element={user ? <Navigate to={user.role === 'hospital' ? '/console' : user.role === 'admin' ? '/admin' : '/home'} /> : <Login />} />
+          <Route path="/register" element={user ? <Navigate to={user.role === 'hospital' ? '/console' : user.role === 'admin' ? '/admin' : '/home'} /> : <Register />} />
 
           {/* Donor routes */}
           <Route path="/home" element={
@@ -135,9 +140,16 @@ function App() {
             </ProtectedRoute>
           } />
 
+          {/* Admin routes */}
+          <Route path="/admin" element={
+            <ProtectedRoute user={user} role="admin">
+              <AdminDashboard />
+            </ProtectedRoute>
+          } />
+
           {/* Root redirect */}
-          <Route path="/" element={<Navigate to={user ? (user.role === 'hospital' ? '/console' : '/home') : '/login'} />} />
-          <Route path="*" element={<Navigate to={user ? (user.role === 'hospital' ? '/console' : '/home') : '/login'} />} />
+          <Route path="/" element={<Navigate to={user ? (user.role === 'hospital' ? '/console' : user.role === 'admin' ? '/admin' : '/home') : '/login'} />} />
+          <Route path="*" element={<Navigate to={user ? (user.role === 'hospital' ? '/console' : user.role === 'admin' ? '/admin' : '/home') : '/login'} />} />
         </Routes>
       </div>
     </div>
