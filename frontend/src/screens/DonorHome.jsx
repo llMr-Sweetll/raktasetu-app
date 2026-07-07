@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, Droplet, CheckCircle2, ChevronRight } from 'lucide-react';
-import { T } from '../App.jsx';
+import { T } from '../theme.js';
 import Logo from '../components/Logo.jsx';
 import Chip from '../components/Chip.jsx';
 import Card from '../components/Card.jsx';

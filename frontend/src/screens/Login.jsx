@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Phone, Lock, Droplet } from 'lucide-react';
-import { T } from '../App.jsx';
+import { T } from '../theme.js';
 import Logo from '../components/Logo.jsx';
 import Btn from '../components/Btn.jsx';
 import { useAuth } from '../hooks/useAuth.js';

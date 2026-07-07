@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Radio, MapPin, Clock, Droplet, ArrowRight, CheckCircle2 } from 'lucide-react';
-import { T, GIVERS } from '../App.jsx';
+import { T, GIVERS } from '../theme.js';
 import Chip from '../components/Chip.jsx';
 import Card from '../components/Card.jsx';
 import Btn from '../components/Btn.jsx';

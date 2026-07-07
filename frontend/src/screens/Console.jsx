@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { T } from '../App.jsx';
+import { T } from '../theme.js';
 import Logo from '../components/Logo.jsx';
 import Chip from '../components/Chip.jsx';
 import Card from '../components/Card.jsx';

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { T } from '../App.jsx';
+import { T } from '../theme.js';
 import Card from '../components/Card.jsx';
 import Btn from '../components/Btn.jsx';
 import BottomNav from '../components/BottomNav.jsx';

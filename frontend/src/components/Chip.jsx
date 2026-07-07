@@ -1,5 +1,5 @@
 import React from 'react';
-import { T } from '../App.jsx';
+import { T } from '../theme.js';
 
 const body = "'Public Sans', 'Segoe UI', system-ui, sans-serif";
 

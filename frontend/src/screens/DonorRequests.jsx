@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Map as MapIcon, List, ChevronRight, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { T } from '../App.jsx';
+import { T } from '../theme.js';
 import Card from '../components/Card.jsx';
 import BottomNav from '../components/BottomNav.jsx';
 import api from '../api/client.js';

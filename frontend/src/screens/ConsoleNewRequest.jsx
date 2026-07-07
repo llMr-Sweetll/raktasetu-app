@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Minus, Radio, AlertTriangle, Users, CheckCircle2, ArrowLeft } from 'lucide-react';
-import { T, GIVERS, RARE, GROUPS } from '../App.jsx';
+import { T, GIVERS, RARE, GROUPS } from '../theme.js';
 import Card from '../components/Card.jsx';
 import Btn from '../components/Btn.jsx';
 import api from '../api/client.js';

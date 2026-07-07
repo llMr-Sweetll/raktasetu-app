@@ -1,5 +1,5 @@
 import React from 'react';
-import { T } from '../App.jsx';
+import { T } from '../theme.js';
 
 export default function Card({ children, style, dark }) {
   return (

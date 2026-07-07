@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { User, Phone, Mail, Lock, Droplet, MapPin } from 'lucide-react';
-import { T, GROUPS } from '../App.jsx';
+import { T, GROUPS } from '../theme.js';
 import Btn from '../components/Btn.jsx';
 import { useAuth } from '../hooks/useAuth.js';
 

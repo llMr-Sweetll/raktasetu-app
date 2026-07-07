@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/client.js';
-import { API_URL } from '../App.jsx';
+import { API_URL } from '../config.js';
 
 export function useAuth() {
   const [user, setUser] = useState(null);

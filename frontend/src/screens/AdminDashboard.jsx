@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, Building2, Droplet, Award, BarChart3, ArrowLeft, LogOut } from 'lucide-react';
-import { T } from '../App.jsx';
+import { T } from '../theme.js';
 import Card from '../components/Card.jsx';
 import api from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';

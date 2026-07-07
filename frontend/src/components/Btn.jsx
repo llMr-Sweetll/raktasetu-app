@@ -1,5 +1,5 @@
 import React from 'react';
-import { T } from '../App.jsx';
+import { T } from '../theme.js';
 
 const display = "'Anek Latin', 'Segoe UI', system-ui, sans-serif";
 
