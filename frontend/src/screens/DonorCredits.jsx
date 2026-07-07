@@ -20,9 +20,10 @@ export default function DonorCredits() {
 
   const fetchCredits = async () => {
     try {
-      const { data } = await api.get('/donor/credits');
-      setBalance(data.balance || 0);
-      setLedger(data.ledger || []);
+      const { data: response } = await api.get('/donor/credits');
+      const payload = response.data || response;
+      setBalance(payload.balance || 0);
+      setLedger(payload.history || []);
     } catch (err) {
       setError('Failed to load credits');
     } finally {

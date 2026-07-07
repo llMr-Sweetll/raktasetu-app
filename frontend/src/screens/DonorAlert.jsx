@@ -27,8 +27,9 @@ export default function DonorAlert() {
 
   const fetchRequest = async () => {
     try {
-      const { data } = await api.get(`/donor/requests`);
-      const found = data.requests?.find(r => r.id === requestId);
+      const { data: response } = await api.get(`/donor/requests`);
+      const payload = response.data || response;
+      const found = payload.requests?.find(r => r.id === requestId);
       if (found) setRequest(found);
       else setError('Request not found');
     } catch (err) {
@@ -96,7 +97,7 @@ export default function DonorAlert() {
           <MapPin size={15} color={T.oxblood} />
           <div>
             <p style={{ fontFamily: display, fontWeight: 700, fontSize: 14.5, margin: 0, color: T.ink }}>{request.hospital_name}</p>
-            <p style={{ fontFamily: body, fontSize: 12, color: T.mut, margin: '1px 0 0' }}>{request.address} · {request.distance_km?.toFixed(1)} km from you</p>
+            <p style={{ fontFamily: body, fontSize: 12, color: T.mut, margin: '1px 0 0' }}>{request.hospital_address} · {request.distance_km?.toFixed(1)} km from you</p>
           </div>
         </div>
 

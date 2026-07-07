@@ -23,8 +23,9 @@ export default function DonorProfile() {
 
   const fetchHistory = async () => {
     try {
-      const { data } = await api.get('/donor/history');
-      setHistory(data.donations || []);
+      const { data: response } = await api.get('/donor/history');
+      const payload = response.data || response;
+      setHistory(payload.donations || []);
     } catch {
       // ignore
     } finally {

@@ -18,10 +18,14 @@ import adminRoutes from './routes/admin.js';
 dotenv.config();
 
 const app = express();
+
+// Trust proxy (Cloudflare tunnel sends X-Forwarded-For)
+app.set('trust proxy', 1);
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: '*',
+    origin: ['https://llMr-Sweetll.github.io', 'http://localhost:5173'],
     methods: ['GET', 'POST']
   }
 });
@@ -32,7 +36,18 @@ const io = new Server(server, {
  * =======================
  */
 app.use(helmet());
-app.use(cors());
+
+// CORS — restrict to known frontend origins only
+const ALLOWED_ORIGINS = ['https://llMr-Sweetll.github.io', 'http://localhost:5173'];
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS blocked: origin not allowed'));
+    }
+  }
+}));
 app.use(express.json({ limit: '10kb' }));
 
 // Rate limiting
@@ -78,7 +93,7 @@ function haversine(lat1, lon1, lat2, lon2) {
 }
 
 function generateRefCode() {
-  return `RS-${Date.now().toString(36).toUpperCase().slice(-4)}`;
+  return `RS-${Date.now().toString(36).toUpperCase().slice(-4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 }
 
 /**
@@ -416,13 +431,14 @@ async function seedData() {
   try {
     console.log('Checking seed data...');
 
-    const password_hash = await bcrypt.hash('password123', 12);
+    // NOTE: Removed password reset on startup — was resetting all passwords every restart
+    // const password_hash = await bcrypt.hash('password123', 12);
+    // await query('UPDATE users SET password_hash = $1 WHERE password_hash = $2 OR password_hash NOT LIKE $3', [
+    //   password_hash, '$2a$10$YourHashedPasswordHere', '$2a$%'
+    // ]);
+    // console.log('  Reset all user passwords to: password123');
 
-    // Reset all existing user passwords to known value for testing
-    await query('UPDATE users SET password_hash = $1 WHERE password_hash = $2 OR password_hash NOT LIKE $3', [
-      password_hash, '$2a$10$YourHashedPasswordHere', '$2a$%'
-    ]);
-    console.log('  Reset all user passwords to: password123');
+    const password_hash = await bcrypt.hash('password123', 12);
 
     // Admin user
     const adminEmail = 'admin@raktasetu.in';

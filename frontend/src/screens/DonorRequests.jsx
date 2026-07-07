@@ -22,8 +22,9 @@ export default function DonorRequests() {
 
   const fetchRequests = async () => {
     try {
-      const { data } = await api.get('/donor/requests');
-      setRequests(data.requests || []);
+      const { data: response } = await api.get('/donor/requests');
+      const payload = response.data || response;
+      setRequests(payload.requests || []);
     } catch (err) {
       setError('Failed to load requests');
     } finally {

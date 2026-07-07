@@ -23,8 +23,9 @@ export default function DonorOnTheWay() {
 
   const fetchRequest = async () => {
     try {
-      const { data } = await api.get(`/donor/requests`);
-      const found = data.requests?.find(r => r.id === requestId);
+      const { data: response } = await api.get(`/donor/requests`);
+      const payload = response.data || response;
+      const found = payload.requests?.find(r => r.id === requestId);
       setRequest(found || null);
       if (found) setQrData(`RS-DONOR-${found.id}`);
     } catch {

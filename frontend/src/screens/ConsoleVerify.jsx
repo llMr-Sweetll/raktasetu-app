@@ -25,8 +25,9 @@ export default function ConsoleVerify() {
     setLoading(true);
     setError('');
     try {
-      const { data } = await api.get(`/hospital/requests?ref=${refCode.trim()}`);
-      if (data.donor) setDonor(data.donor);
+      const { data: response } = await api.get(`/hospital/requests?ref=${refCode.trim()}`);
+      const payload = response.data || response;
+      if (payload.donor) setDonor(payload.donor);
       else setError('Donor not found');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to find donor');

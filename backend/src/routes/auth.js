@@ -109,7 +109,7 @@ router.post('/login', async (req, res) => {
     const lookupValue = email || phone;
 
     const result = await query(
-      `SELECT id, email, phone, name, role, blood_group, latitude, longitude, city, state, is_verified, is_on_call, ping_radius_km, password_hash, created_at FROM users WHERE ${lookupField} = $1`,
+      `SELECT id, email, phone, name, role, blood_group, latitude, longitude, city, state, is_verified, is_on_call, ping_radius_km, last_donation_date, next_eligible_date, password_hash, created_at FROM users WHERE ${lookupField} = $1`,
       [lookupValue]
     );
 

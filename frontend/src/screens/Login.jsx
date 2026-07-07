@@ -23,7 +23,7 @@ export default function Login() {
     setLoading(true);
     try {
       const user = await login(phone, password);
-      navigate(user.role === 'hospital' ? '/console' : '/home');
+      navigate(user.role === 'hospital' ? '/console' : user.role === 'admin' ? '/admin' : '/home');
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed. Please try again.');
     } finally {

@@ -3,10 +3,9 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth.js';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import { T } from './theme.js';
+import { API_URL, APP_VERSION } from './config.js';
 
-/* Re-export constants from non-circular files for backward compat */
-export { T, GIVERS, RARE, GROUPS } from './theme.js';
-export { API_URL } from './config.js';
+console.log('[RaktaSetu] Version:', APP_VERSION, 'API:', API_URL);
 
 /* Auth */
 import Login from './screens/Login.jsx';

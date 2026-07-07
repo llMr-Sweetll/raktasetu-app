@@ -28,10 +28,11 @@ export default function DonorHome() {
 
   const fetchDashboard = async () => {
     try {
-      const { data } = await api.get('/donor/dashboard');
-      setDashboard(data);
-      setOnCall(data.is_on_call);
-      updateUser({ is_on_call: data.is_on_call });
+      const { data: response } = await api.get('/donor/dashboard');
+      const payload = response.data || response;
+      setDashboard(payload);
+      setOnCall(payload.is_on_call);
+      updateUser({ is_on_call: payload.is_on_call });
     } catch (err) {
       setError('Failed to load dashboard');
     } finally {
@@ -42,9 +43,10 @@ export default function DonorHome() {
   const toggleOnCall = async () => {
     setToggleLoading(true);
     try {
-      const { data } = await api.patch('/donor/on-call', { is_on_call: !onCall });
-      setOnCall(data.is_on_call);
-      updateUser({ is_on_call: data.is_on_call });
+      const { data: response } = await api.patch('/donor/on-call', { is_on_call: !onCall });
+      const payload = response.data || response;
+      setOnCall(payload.is_on_call);
+      updateUser({ is_on_call: payload.is_on_call });
     } catch (err) {
       setError('Failed to update status');
     } finally {

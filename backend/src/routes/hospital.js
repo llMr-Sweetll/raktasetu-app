@@ -36,7 +36,7 @@ function haversine(lat1, lon1, lat2, lon2) {
  * Generate a reference code for donation verification
  */
 function generateRefCode() {
-  return `RS-${Date.now().toString(36).toUpperCase().slice(-4)}`;
+  return `RS-${Date.now().toString(36).toUpperCase().slice(-4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 }
 
 // All hospital routes require hospital role

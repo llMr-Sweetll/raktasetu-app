@@ -34,8 +34,9 @@ export default function Console() {
 
   const fetchDashboard = async () => {
     try {
-      const { data } = await api.get('/hospital/dashboard');
-      setRequests(data.requests || []);
+      const { data: response } = await api.get('/hospital/dashboard');
+      const payload = response.data || response;
+      setRequests(payload.requests || []);
     } catch (err) {
       setError('Failed to load live board');
     } finally {

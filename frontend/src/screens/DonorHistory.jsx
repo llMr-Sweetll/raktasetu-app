@@ -21,8 +21,9 @@ export default function DonorHistory() {
 
   const fetchHistory = async () => {
     try {
-      const { data } = await api.get('/donor/history');
-      setDonations(data.donations || []);
+      const { data: response } = await api.get('/donor/history');
+      const payload = response.data || response;
+      setDonations(payload.donations || []);
     } catch (err) {
       setError('Failed to load donation history');
     } finally {
