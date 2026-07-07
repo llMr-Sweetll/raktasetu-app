@@ -1,185 +1,218 @@
 # RaktaSetu — Blood Donation Platform
 
 > **Connect. Donate. Save Lives.**
+> A cross-platform blood donation matching platform for donors, hospitals, and administrators.
 
-A complete, working cross-platform mobile application for blood donation management. Built for donors, hospitals, and blood banks with real-time emergency matching, digital credits, and QR-based verification.
+## Live Frontend
 
----
+**GitHub Pages**: https://llMr-Sweetll.github.io/raktasetu-app/
 
-## What This Is
+The frontend is a production React 18 + Vite PWA. Works on mobile, tablet, and desktop.
 
-RaktaSetu ("Blood Bridge" in Sanskrit) is a digital platform that bridges the gap between blood donors and hospitals in need. It consists of:
+## Quick Deploy Backend (2 minutes)
 
-- **Donor Mobile App** — Register, go on-call, receive emergency pings, donate, earn credits
-- **Hospital Console** — Create requests, track donors in real-time, verify donations via QR code
-- **Real-time Matching** — Socket.io-powered instant notifications between hospitals and compatible donors
-- **Credit System** — Digital replacement for donor cards; 100 credits = 1 unit waived for you or family
+Choose one platform and click deploy:
 
----
+### Option A: Render (Recommended — Free Tier)
 
-## Architecture
+1. Go to [render.com](https://render.com) and sign up with GitHub
+2. Click **New +** → **Blueprint**
+3. Connect your GitHub repo `llMr-Sweetll/raktasetu-app`
+4. Select the `backend/render.yaml` blueprint
+5. Add environment variables:
+   - `DATABASE_URL` — your Neon Postgres connection string
+   - `JWT_SECRET` — any random string (e.g., `openssl rand -base64 32`)
+   - `JWT_EXPIRES_IN` — `7d`
+6. Click **Apply**
 
-```
-raktasetu-app/
-├── backend/          # Express.js + Socket.io API
-│   ├── src/
-│   │   ├── server.js          # Main server + Socket.io
-│   │   ├── db.js              # Neon Postgres connection
-│   │   ├── middleware/
-│   │   │   └── auth.js        # JWT authentication
-│   │   └── routes/
-│   │       ├── auth.js        # Login, register, profile
-│   │       ├── donor.js       # Donor operations
-│   │       ├── hospital.js    # Hospital console
-│   │       └── admin.js       # Admin utilities
-│   ├── .env                   # Environment variables
-│   └── package.json
-├── frontend/       # React 18 + Vite mobile app
-│   ├── src/
-│   │   ├── screens/           # All app screens
-│   │   ├── components/          # Shared UI components
-│   │   ├── hooks/               # useAuth, useSocket
-│   │   ├── api/                 # Axios client
-│   │   └── App.jsx              # Router + design tokens
-│   ├── public/                  # PWA assets
-│   ├── capacitor.config.ts      # Mobile app config
-│   └── package.json
-└── plan.md                      # Full specification
+Render will build from the `Dockerfile` and deploy automatically.
+
+### Option B: Railway (Free Tier)
+
+1. Go to [railway.app](https://railway.app) and sign up with GitHub
+2. Click **New Project** → **Deploy from GitHub repo**
+3. Select `llMr-Sweetll/raktasetu-app`
+4. Set the **Root Directory** to `backend/`
+5. Add environment variables (same as above)
+6. Deploy
+
+### Option C: Fly.io (Free Tier — $5 credit)
+
+```bash
+cd backend
+flyctl launch --dockerfile Dockerfile
+# Follow prompts, set env vars
+flyctl secrets set DATABASE_URL="your-neon-url" JWT_SECRET="your-secret"
 ```
 
----
+### Option D: Any VPS / Docker
+
+```bash
+cd backend
+docker build -t raktasetu-backend .
+docker run -p 3001:3001 \
+  -e DATABASE_URL="your-neon-url" \
+  -e JWT_SECRET="your-secret" \
+  -e JWT_EXPIRES_IN="7d" \
+  raktasetu-backend
+```
+
+## After Backend Deploy
+
+1. Copy your backend URL (e.g., `https://raktasetu-api.onrender.com`)
+2. Go to `frontend/src/App.jsx` line 59
+3. Change `API_URL` to your backend URL:
+   ```javascript
+   export const API_URL = 'https://your-backend-url/api';
+   ```
+4. Rebuild and redeploy frontend:
+   ```bash
+   cd frontend
+   npm run build
+   # Push dist/ folder to gh-pages branch
+   ```
+
+## Demo Credentials
+
+| Role | Phone / Email | Password |
+|------|--------------|----------|
+| Donor | `+919876543210` | `password123` |
+| Donor | `+919876543211` | `password123` |
+| Hospital | `+918312456789` | `password123` |
+| Admin | `admin@raktasetu.in` | `password123` |
+
+## Features
+
+### Donor App
+- **On-call toggle** — donors signal availability with a single tap
+- **Emergency pings** — real-time blood requests from nearby hospitals
+- **GPS matching** — haversine distance + blood compatibility matrix
+- **Credits system** — earn 100 credits per verified donation, redeem for family
+- **Donation history** — complete ledger with hospital, date, credits
+- **Profile** — Aadhaar verification status, ping radius, eligibility tracker
+
+### Hospital Console
+- **Live board** — real-time request tracking with donor response counts
+- **New request** — broadcast to compatible on-call donors within radius
+- **Verify donor** — QR scan or manual ref code entry, instant credit issuance
+- **Stats** — pinged / accepted / arrived / collected progress bars
+
+### Admin Dashboard
+- **Platform analytics** — total donors, hospitals, active requests, credits
+- **User management** — view all donors and hospitals with verification status
+- **Request monitoring** — track all blood requests across the platform
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| **Frontend** | React 18, Vite 5, React Router 6, Leaflet, Socket.io-client |
-| **Backend** | Node.js 20, Express 4, Socket.io 4, bcryptjs, JWT |
-| **Database** | Neon Postgres (serverless) |
-| **Mobile** | Capacitor 6 (wraps web app for iOS/Android) |
-| **Maps** | OpenStreetMap via Leaflet (free, no API key) |
-| **QR** | qrcode.react (generate), html5-qrcode (scan) |
-
----
-
-## Quick Start
-
-### Prerequisites
-- Node.js 20+
-- A Neon Postgres database (or any PostgreSQL)
-
-### 1. Clone & Setup
-```bash
-git clone <repo>
-cd raktasetu-app
-```
-
-### 2. Backend
-```bash
-cd backend
-cp .env.example .env
-# Edit .env with your DATABASE_URL and JWT_SECRET
-npm install
-npm start        # Server runs on http://localhost:3001
-```
-
-### 3. Frontend
-```bash
-cd frontend
-npm install
-npm run dev      # Dev server on http://localhost:5173
-```
-
-### 4. Mobile Build (iOS/Android)
-```bash
-cd frontend
-npm run build
-npx cap sync
-npx cap open ios     # or android
-```
-
----
+| Frontend | React 18, Vite, React Router (HashRouter), Capacitor 6 |
+| Backend | Node.js, Express 4, Socket.io, JWT, bcryptjs |
+| Database | PostgreSQL 15 (Neon Serverless) |
+| Mobile | iOS/Android via Capacitor (Xcode/Android Studio) |
+| Hosting | GitHub Pages (frontend), Render/Railway/Fly.io (backend) |
 
 ## API Endpoints
 
-### Auth
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/auth/register` | Register donor or hospital |
-| POST | `/api/auth/login` | Login with phone/email + password |
+| POST | `/api/auth/login` | Phone/email + password login |
+| POST | `/api/auth/register` | New donor/hospital registration |
 | GET | `/api/auth/me` | Current user profile |
-
-### Donor
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/donor/dashboard` | Home stats + nearby requests |
+| GET | `/api/donor/dashboard` | Donor home stats + nearby requests |
 | PATCH | `/api/donor/on-call` | Toggle availability |
-| GET | `/api/donor/requests` | Nearby compatible requests |
+| GET | `/api/donor/requests` | List nearby active requests |
 | POST | `/api/donor/respond/:id` | Accept/decline request |
-| POST | `/api/donor/arrived/:id` | Mark arrived at hospital |
-| GET | `/api/donor/credits` | Credit balance + ledger |
+| POST | `/api/donor/arrived/:id` | Mark arrival at hospital |
+| GET | `/api/donor/credits` | Credit balance + history |
 | GET | `/api/donor/history` | Donation history |
-| PATCH | `/api/donor/profile` | Update profile |
-
-### Hospital
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/hospital/dashboard` | Live board with stats |
-| POST | `/api/hospital/requests` | Create blood request |
+| PATCH | `/api/donor/profile` | Update profile/location |
+| GET | `/api/hospital/dashboard` | Hospital live board |
+| POST | `/api/hospital/requests` | Create new blood request |
+| GET | `/api/hospital/requests` | Search by ref code |
 | GET | `/api/hospital/requests/:id` | Request detail |
-| PATCH | `/api/hospital/requests/:id` | Update status |
-| POST | `/api/hospital/verify-donation` | Verify + award credits |
+| PATCH | `/api/hospital/requests/:id` | Update request status |
+| POST | `/api/hospital/verify-donation` | Verify donation + award credits |
 | GET | `/api/hospital/donors` | Nearby on-call donors |
+| GET | `/api/admin/users` | List all users |
+| GET | `/api/admin/requests` | List all blood requests |
+| GET | `/api/admin/stats` | Platform-wide statistics |
+| GET | `/health` | Health check |
 
-### Socket.io Events
+## Socket.io Events
+
 | Event | Direction | Description |
 |-------|-----------|-------------|
-| `donor:go-on-call` | Donor → Server | Broadcast availability |
-| `hospital:new-request` | Hospital → Server | Ping compatible donors |
-| `donor:respond` | Donor → Server | Accept/decline notification |
-| `donor:arrived` | Donor → Server | Arrival confirmation |
-| `hospital:verify` | Hospital → Server | Donation verified |
+| `donor:go-on-call` | Donor → Server | Donor toggles availability |
+| `donor:go-off-call` | Donor → Server | Donor goes off-call |
+| `hospital:new-request` | Hospital → Server | New blood request created |
+| `donor:respond` | Donor → Server | Donor accepts/declines |
+| `donor:arrived` | Donor → Server | Donor arrives at hospital |
+| `hospital:verify` | Hospital → Server | Hospital verifies donation |
+| `blood-request` | Server → Donor | New request pinged to donor |
+| `donor:available` | Server → Hospital | Donor came on-call nearby |
+| `donor:unavailable` | Server → Hospital | Donor went off-call nearby |
+| `donor:response` | Server → Hospital | Donor accepted/declined |
+| `donor:arrived` | Server → Hospital | Donor marked arrival |
+| `donation:verified` | Server → Donor | Donation verified, credits issued |
 
----
+## Database Schema
+
+10 tables: `users`, `hospitals`, `blood_requests`, `donor_responses`, `donations`, `credits`, `family_members`, `notifications`, `addresses`, `sessions`.
 
 ## Blood Compatibility Matrix
 
-| Recipient | Compatible Donors |
-|-----------|-------------------|
-| O- | O- |
-| O+ | O-, O+ |
-| A- | O-, A- |
-| A+ | O-, O+, A-, A+ |
-| B- | O-, B- |
-| B+ | O-, O+, B-, B+ |
-| AB- | O-, A-, B-, AB- |
-| AB+ | O-, O+, A-, A+, B-, B+, AB-, AB+ |
+```
+O-  → O-
+O+  → O-, O+
+A-  → O-, A-
+A+  → O-, O+, A-, A+
+B-  → O-, B-
+B+  → O-, O+, B-, B+
+AB- → O-, A-, B-, AB-
+AB+ → All groups
+```
 
-**Rare groups** (O-, AB-) auto-widen search radius to 25km.
+## Mobile Builds
 
----
+### iOS
+```bash
+cd frontend
+npm run build
+npx cap sync ios
+npx cap open ios
+```
 
-## Design System
+### Android
+```bash
+cd frontend
+npm run build
+npx cap sync android
+npx cap open android
+```
 
-- **Display Font**: Anek Latin (Indian typeface, Kannada sibling available)
-- **Body Font**: Public Sans (designed for government digital services)
-- **Primary**: Oxblood `#7A1626`
-- **Emergency**: Arterial `#C8102E`
-- **Success**: Leaf `#0F6B4A`
-- **Dark Console**: Console `#14161C`
-- **Background**: Porcelain `#F5F3F0`
+## Development
 
----
+```bash
+# Clone
+git clone https://github.com/llMr-Sweetll/raktasetu-app.git
+cd raktasetu-app
 
-## Demo Accounts
+# Backend
+cd backend
+cp .env.example .env
+# Edit .env with your DATABASE_URL, JWT_SECRET, JWT_EXPIRES_IN
+npm install
+npm start
 
-| Role | Phone | Password |
-|------|-------|----------|
-| Donor | `+919876543210` | `password123` |
-| Donor | `+919876543211` | `password123` |
-| Hospital | `+918312456789` | `password123` |
+# Frontend (new terminal)
+cd frontend
+npm install
+npm run dev
+```
 
----
+Frontend: http://localhost:5173
+Backend: http://localhost:3001
 
 ## License
 
