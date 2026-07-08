@@ -2,6 +2,7 @@ import express from 'express';
 import { query } from '../db.js';
 import { authenticate, requireRole } from '../middleware/auth.js';
 import { v4 as uuidv4 } from 'uuid';
+import { logAudit } from '../utils/compliance.js';
 
 const router = express.Router();
 
@@ -102,7 +103,6 @@ router.get('/dashboard', async (req, res) => {
           blood_group: user?.blood_group || null
         },
         nearby_requests: nearbyRequests,
-        // Frontend compatibility aliases
         credits: parseInt(stats.credit_balance) || 0,
         eligible: !user?.next_eligible_date || new Date(user.next_eligible_date) <= new Date(),
         is_on_call: user?.is_on_call || false
@@ -135,6 +135,8 @@ router.patch('/on-call', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Donor not found' });
     }
+
+    await logAudit({ userId: donorId, action: 'ON_CALL_TOGGLE', resourceType: 'user', resourceId: donorId, details: { is_on_call: result.rows[0].is_on_call }, req });
 
     return res.json({ success: true, data: { is_on_call: result.rows[0].is_on_call } });
   } catch (err) {
@@ -265,6 +267,8 @@ router.post('/respond/:requestId', async (req, res) => {
       );
     }
 
+    await logAudit({ userId: donorId, action: 'DONOR_RESPONSE', resourceType: 'donor_response', resourceId: response.id, details: { request_id: requestId, status }, req });
+
     return res.json({ success: true, data: { response } });
   } catch (err) {
     console.error('Respond error:', err);
@@ -320,6 +324,8 @@ router.post('/arrived/:requestId', async (req, res) => {
         ]
       );
     }
+
+    await logAudit({ userId: donorId, action: 'DONOR_ARRIVED', resourceType: 'donor_response', resourceId: result.rows[0].id, details: { request_id: requestId }, req });
 
     return res.json({ success: true, data: { response: result.rows[0] } });
   } catch (err) {
@@ -408,7 +414,14 @@ router.patch('/profile', async (req, res) => {
     if (longitude !== undefined) { updates.push(`longitude = $${idx++}`); values.push(longitude); }
     if (city !== undefined) { updates.push(`city = $${idx++}`); values.push(city); }
     if (state !== undefined) { updates.push(`state = $${idx++}`); values.push(state); }
-    if (ping_radius_km !== undefined) { updates.push(`ping_radius_km = $${idx++}`); values.push(ping_radius_km); }
+    if (ping_radius_km !== undefined) {
+      const radiusNum = parseInt(ping_radius_km, 10);
+      if (isNaN(radiusNum) || radiusNum < 1 || radiusNum > 100) {
+        return res.status(400).json({ success: false, error: 'ping_radius_km must be between 1 and 100' });
+      }
+      updates.push(`ping_radius_km = $${idx++}`);
+      values.push(radiusNum);
+    }
 
     if (updates.length === 0) {
       return res.status(400).json({ success: false, error: 'No fields to update' });
@@ -425,6 +438,8 @@ router.patch('/profile', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Donor not found' });
     }
+
+    await logAudit({ userId: donorId, action: 'PROFILE_UPDATE', resourceType: 'user', resourceId: donorId, details: { fields: updates.map(u => u.split(' = ')[0]) }, req });
 
     return res.json({ success: true, data: { user: result.rows[0] } });
   } catch (err) {

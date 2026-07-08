@@ -44,7 +44,7 @@ export default function ConsoleNewRequest() {
       });
       setSent(true);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to broadcast request');
+      setError(err.response?.data?.error || 'Failed to broadcast request');
     } finally {
       setLoading(false);
     }

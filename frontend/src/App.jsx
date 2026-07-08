@@ -10,6 +10,7 @@ console.log('[RaktaSetu] Version:', APP_VERSION, 'API:', API_URL);
 /* Auth */
 import Login from './screens/Login.jsx';
 import Register from './screens/Register.jsx';
+import PrivacyPolicy from './screens/PrivacyPolicy.jsx';
 
 /* Donor */
 import DonorHome from './screens/DonorHome.jsx';
@@ -52,6 +53,7 @@ function App() {
           {/* Public routes */}
           <Route path="/login" element={user ? <Navigate to={user.role === 'hospital' ? '/console' : user.role === 'admin' ? '/admin' : '/home'} /> : <Login />} />
           <Route path="/register" element={user ? <Navigate to={user.role === 'hospital' ? '/console' : user.role === 'admin' ? '/admin' : '/home'} /> : <Register />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
 
           {/* Donor routes */}
           <Route path="/home" element={

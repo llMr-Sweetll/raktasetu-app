@@ -16,6 +16,8 @@ export default function DonorOnTheWay() {
   const [request, setRequest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [qrData, setQrData] = useState('');
+  const [arrived, setArrived] = useState(false);
+  const [arriving, setArriving] = useState(false);
 
   useEffect(() => {
     fetchRequest();
@@ -45,6 +47,18 @@ export default function DonorOnTheWay() {
     if (request?.hospital_phone) window.location.href = `tel:${request.hospital_phone}`;
   };
 
+  const markArrived = async () => {
+    try {
+      setArriving(true);
+      await api.post(`/donor/arrived/${requestId}`);
+      setArrived(true);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to mark arrival');
+    } finally {
+      setArriving(false);
+    }
+  };
+
   if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: body }}>Loading...</div>;
 
   return (
@@ -64,9 +78,12 @@ export default function DonorOnTheWay() {
       <Card style={{ marginTop: 12 }}>
         <p style={{ fontFamily: display, fontWeight: 800, fontSize: 16, margin: 0, color: T.ink }}>{request?.hospital_name || 'Hospital'}</p>
         <p style={{ fontFamily: body, fontSize: 12.5, color: T.mut, margin: '3px 0 12px' }}>{request?.address || ''} · ref {request?.ref_code || '—'}</p>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Btn kind="primary" small onClick={openDirections}><Navigation size={14} /> Directions</Btn>
           <Btn kind="ghost" small onClick={callHospital}><Phone size={14} /> Call blood bank</Btn>
+          <Btn kind="primary" small onClick={markArrived} disabled={arrived || arriving}>
+            {arrived ? 'Arrived ✓' : arriving ? 'Marking...' : "I've Arrived"}
+          </Btn>
         </div>
       </Card>
 

@@ -2,6 +2,7 @@ import express from 'express';
 import { query } from '../db.js';
 import { authenticate, requireRole } from '../middleware/auth.js';
 import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
 
 const router = express.Router();
 
@@ -36,7 +37,9 @@ function haversine(lat1, lon1, lat2, lon2) {
  * Generate a reference code for donation verification
  */
 function generateRefCode() {
-  return `RS-${Date.now().toString(36).toUpperCase().slice(-4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+  const timestamp = Date.now().toString(36).toUpperCase().slice(-4);
+  const random = crypto.randomBytes(3).toString('hex').toUpperCase().slice(0, 4);
+  return `RS-${timestamp}${random}`;
 }
 
 // All hospital routes require hospital role
@@ -118,8 +121,13 @@ router.post('/requests', async (req, res) => {
 
     const { blood_group, units_needed, urgency, radius_km, notes, needed_by } = req.body;
 
-    if (!blood_group || !units_needed || !urgency) {
+    if (!blood_group || units_needed === undefined || units_needed === null || !urgency) {
       return res.status(400).json({ success: false, error: 'blood_group, units_needed, and urgency are required' });
+    }
+
+    const unitsNum = parseInt(units_needed, 10);
+    if (isNaN(unitsNum) || unitsNum < 1 || unitsNum > 50) {
+      return res.status(400).json({ success: false, error: 'units_needed must be an integer between 1 and 50' });
     }
 
     if (!['O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+'].includes(blood_group)) {
@@ -130,17 +138,22 @@ router.post('/requests', async (req, res) => {
       return res.status(400).json({ success: false, error: 'urgency must be scheduled, urgent, or critical' });
     }
 
+    const radiusNum = radius_km !== undefined ? parseInt(radius_km, 10) : 10;
+    if (isNaN(radiusNum) || radiusNum < 1 || radiusNum > 100) {
+      return res.status(400).json({ success: false, error: 'radius_km must be between 1 and 100' });
+    }
+
     const requestId = uuidv4();
     const refCode = generateRefCode();
     const isRare = RARE.includes(blood_group);
-    const effectiveRadius = isRare ? 25 : (radius_km || 10);
+    const effectiveRadius = isRare ? 25 : radiusNum;
 
     const result = await query(
       `INSERT INTO blood_requests (id, hospital_id, blood_group, units_needed, urgency, status, radius_km, latitude, longitude, notes, ref_code, needed_by, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
        RETURNING *`,
       [
-        requestId, hospital.id, blood_group, units_needed, urgency, 'open',
+        requestId, hospital.id, blood_group, unitsNum, urgency, 'open',
         effectiveRadius, hospital.latitude, hospital.longitude,
         notes || null, refCode, needed_by ? new Date(needed_by) : null
       ]
@@ -151,7 +164,7 @@ router.post('/requests', async (req, res) => {
     // Find compatible on-call donors within radius
     const compatibleDonors = GIVERS[blood_group];
     const donorsResult = await query(
-      `SELECT id, name, blood_group, latitude, longitude, phone
+      `SELECT id, name, blood_group, latitude, longitude
        FROM users
        WHERE role = 'donor' AND is_on_call = true AND blood_group = ANY($1)`,
       [compatibleDonors]
@@ -273,7 +286,7 @@ router.get('/requests/:id', async (req, res) => {
 
     // Get donor responses with donor details
     const responsesResult = await query(
-      `SELECT dr.*, u.name AS donor_name, u.phone AS donor_phone, u.blood_group AS donor_blood_group
+      `SELECT dr.*, u.name AS donor_name, u.blood_group AS donor_blood_group
        FROM donor_responses dr
        JOIN users u ON u.id = dr.donor_id
        WHERE dr.request_id = $1
@@ -345,6 +358,12 @@ router.post('/verify-donation', async (req, res) => {
     const hospitalId = hospitalResult.rows[0].id;
 
     const { ref_code, donor_id, request_id, units, blood_group } = req.body;
+
+    // Validate units
+    const unitsNum = parseInt(units, 10);
+    if (isNaN(unitsNum) || unitsNum < 1 || unitsNum > 10) {
+      return res.status(400).json({ success: false, error: 'units must be between 1 and 10' });
+    }
 
     // Verify by ref_code or by donor_id + request_id
     let verifiedDonorId = donor_id;
@@ -428,7 +447,7 @@ router.post('/verify-donation', async (req, res) => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8, $9, NOW())`,
       [
         donationId, verifiedDonorId, verifiedRequestId, hospitalId,
-        units || 1, finalBloodGroup, req.user.id,
+        unitsNum, finalBloodGroup, req.user.id,
         creditsEarned, donationRef
       ]
     );
@@ -500,7 +519,7 @@ router.get('/donors', async (req, res) => {
 
     const { radius = 10, blood_group } = req.query;
 
-    let donorQuery = `SELECT id, name, blood_group, latitude, longitude, city, phone, is_on_call, last_donation_date, next_eligible_date
+    let donorQuery = `SELECT id, name, blood_group, latitude, longitude, city, is_on_call, last_donation_date, next_eligible_date
                       FROM users WHERE role = 'donor' AND is_on_call = true`;
     const queryParams = [];
 

@@ -30,7 +30,7 @@ export default function ConsoleVerify() {
       if (payload.donor) setDonor(payload.donor);
       else setError('Donor not found');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to find donor');
+      setError(err.response?.data?.error || 'Failed to find donor');
     } finally {
       setLoading(false);
     }
@@ -46,7 +46,7 @@ export default function ConsoleVerify() {
       });
       setDone(true);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to verify donation');
+      setError(err.response?.data?.error || 'Failed to verify donation');
     } finally {
       setLoading(false);
     }

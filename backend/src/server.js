@@ -55,14 +55,16 @@ const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  keyGenerator: (req) => req.ip || req.connection.remoteAddress || 'unknown'
 });
 app.use(limiter);
 
 // Stricter limit for auth endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10
+  max: 10,
+  keyGenerator: (req) => req.ip || req.connection.remoteAddress || 'unknown'
 });
 app.use('/api/auth/', authLimiter);
 
@@ -107,7 +109,21 @@ app.use('/api/hospital', hospitalRoutes);
 app.use('/api/admin', adminRoutes);
 
 /**
- * Health check
+ * Health check — CI/CD endpoint
+ */
+app.get('/api/health', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      status: 'healthy',
+      version: '1.0.3',
+      timestamp: new Date().toISOString()
+    }
+  });
+});
+
+/**
+ * Legacy /health redirect (kept for backward compatibility)
  */
 app.get('/health', (req, res) => {
   res.json({ success: true, data: { status: 'ok', timestamp: new Date().toISOString() } });
@@ -125,11 +141,10 @@ app.use((req, res) => {
  */
 app.use((err, req, res, next) => {
   console.error('Express error:', err);
-  const isDev = process.env.NODE_ENV !== 'production';
+  // Never leak stack traces in API responses
   res.status(err.status || 500).json({
     success: false,
-    error: isDev ? (err.message || 'Internal server error') : 'Internal server error',
-    ...(isDev && err.stack ? { stack: err.stack } : {})
+    error: 'Internal server error'
   });
 });
 
@@ -578,3 +593,6 @@ process.on('SIGINT', async () => {
   await pool.end();
   process.exit(0);
 });
+
+// Export app for testing
+export { app };

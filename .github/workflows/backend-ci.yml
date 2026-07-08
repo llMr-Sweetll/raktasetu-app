@@ -1,0 +1,63 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ./backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint || echo "No lint script configured"
+
+      - name: Check syntax
+        run: |
+          node --check src/server.js
+          node --check src/db.js
+          node --check src/middleware/auth.js
+          node --check src/routes/auth.js
+          node --check src/routes/donor.js
+          node --check src/routes/hospital.js
+          node --check src/routes/admin.js
+          node --check src/utils/compliance.js
+
+      - name: Start server (health check)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          NODE_ENV: test
+          PORT: 3001
+        run: |
+          # Start server in background
+          node src/server.js &
+          SERVER_PID=$!
+          sleep 5
+          # Test health endpoint
+          curl -sf http://localhost:3001/api/health || (echo "Health check failed" && kill $SERVER_PID && exit 1)
+          kill $SERVER_PID || true
+        timeout-minutes: 2

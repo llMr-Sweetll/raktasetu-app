@@ -25,7 +25,7 @@ export default function Login() {
       const user = await login(phone, password);
       navigate(user.role === 'hospital' ? '/console' : user.role === 'admin' ? '/admin' : '/home');
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Please try again.');
+      setError(err.response?.data?.error || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }

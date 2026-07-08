@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { User, Phone, Mail, Lock, Droplet, MapPin } from 'lucide-react';
+import { User, Phone, Mail, Lock, Droplet, MapPin, Calendar } from 'lucide-react';
 import { T, GROUPS } from '../theme.js';
 import Btn from '../components/Btn.jsx';
 import { useAuth } from '../hooks/useAuth.js';
@@ -19,21 +19,30 @@ export default function Register() {
   const [bloodGroup, setBloodGroup] = useState('O+');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
+  const [dob, setDob] = useState('');
+  const [consentGiven, setConsentGiven] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!name || !phone || !password || !city || !state) { setError('Please fill all required fields'); return; }
+    if (!name || !phone || !password || !city || !state || !dob) { setError('Please fill all required fields'); return; }
     if (role === 'donor' && !bloodGroup) { setError('Please select your blood group'); return; }
+    const today = new Date();
+    const birthDate = new Date(dob);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+    if (age < 18) { setError('You must be at least 18 years old to register'); return; }
+    if (!consentGiven) { setError('You must consent to processing your personal and health data'); return; }
     setLoading(true);
     try {
-      const payload = { name, phone, email, password, role, city, state, blood_group: bloodGroup };
+      const payload = { name, phone, email, password, role, city, state, blood_group: bloodGroup, dob, consent_given: true };
       const user = await register(payload);
       navigate(user.role === 'hospital' ? '/console' : '/home');
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+      setError(err.response?.data?.error || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -94,7 +103,15 @@ export default function Register() {
             <label style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Password</label>
             <div style={{ position: 'relative' }}>
               <Lock size={16} color={T.faint} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
-              <input type="password" placeholder="Min 6 characters" value={password} onChange={(e) => setPassword(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
+              <input type="password" placeholder="Min 8 characters with uppercase, lowercase, number, symbol" value={password} onChange={(e) => setPassword(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Date of birth</label>
+            <div style={{ position: 'relative' }}>
+              <Calendar size={16} color={T.faint} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
+              <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
             </div>
           </div>
 
@@ -125,6 +142,20 @@ export default function Register() {
               <label style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>State</label>
               <input type="text" placeholder="State" value={state} onChange={(e) => setState(e.target.value)} style={inputStyle} />
             </div>
+          </div>
+
+          <div style={{ marginBottom: 14, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+            <input
+              type="checkbox"
+              id="consent"
+              checked={consentGiven}
+              onChange={(e) => setConsentGiven(e.target.checked)}
+              style={{ marginTop: 3, accentColor: T.oxblood }}
+            />
+            <label htmlFor="consent" style={{ fontFamily: body, fontSize: 12, color: T.ink, lineHeight: 1.4 }}>
+              I consent to the processing of my personal and health data for blood donation matching purposes.
+              I have read and agree to the <Link to="/privacy" style={{ color: T.oxblood }}>Privacy Policy</Link>.
+            </label>
           </div>
 
           <Btn kind="primary" full disabled={loading}>{loading ? 'Creating account...' : 'Create account'}</Btn>

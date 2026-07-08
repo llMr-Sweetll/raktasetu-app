@@ -45,7 +45,7 @@ export default function DonorAlert() {
       await api.post(`/donor/respond/${requestId}`, { status: 'accepted' });
       navigate(`/on-the-way/${requestId}`);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to accept request');
+      setError(err.response?.data?.error || 'Failed to accept request');
     } finally {
       setResponding(false);
     }
@@ -57,7 +57,7 @@ export default function DonorAlert() {
       await api.post(`/donor/respond/${requestId}`, { status: 'declined' });
       navigate('/home');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to decline request');
+      setError(err.response?.data?.error || 'Failed to decline request');
     } finally {
       setResponding(false);
     }
