@@ -1,0 +1,10 @@
+providers = []
+
+[phases.build]
+cmds = ["cd backend && npm install"]
+
+[phases.setup]
+nixPkgs = ["nodejs_20", "npm-10_x"]
+
+[start]
+cmds = ["cd backend && npm start"]
