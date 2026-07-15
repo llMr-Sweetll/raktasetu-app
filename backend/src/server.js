@@ -18,11 +18,13 @@ import donorRoutes from './routes/donor.js';
 import hospitalRoutes from './routes/hospital.js';
 import adminRoutes from './routes/admin.js';
 import pushRoutes from './routes/push.js';
+import { applyPrivacyHeaders, buildHelmetOptions } from './security.js';
 
 dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
+const isProduction = process.env.NODE_ENV === 'production' || Boolean(process.env.RAILWAY_ENVIRONMENT);
 
 // Trust proxy (Railway / reverse proxies send X-Forwarded-For)
 app.set('trust proxy', 1);
@@ -62,9 +64,8 @@ const io = new Server(server, {
  *  Middleware
  * =======================
  */
-app.use(helmet({
-  contentSecurityPolicy: false, // SPA assets + Socket.io on same origin
-}));
+app.use(helmet(buildHelmetOptions(isProduction)));
+app.use(applyPrivacyHeaders);
 
 // CORS — never throw: cors(Error) becomes HTTP 500 and breaks module/CSS loads.
 app.use(cors({
@@ -621,6 +622,8 @@ async function ensureMigrations() {
   try {
     await query('ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub varchar UNIQUE');
     await query('ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at timestamptz');
+    await query('ALTER TABLE users ADD COLUMN IF NOT EXISTS consent_policy_version varchar');
+    await query('ALTER TABLE users ADD COLUMN IF NOT EXISTS consent_source varchar');
     await query(`
       CREATE TABLE IF NOT EXISTS push_subscriptions (
         id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -632,7 +635,7 @@ async function ensureMigrations() {
         updated_at timestamptz DEFAULT now()
       )`);
     await query('CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user ON push_subscriptions(user_id)');
-    console.log('Schema patches OK (google_sub, push_subscriptions)');
+    console.log('Schema patches OK (auth, consent, push subscriptions)');
   } catch (err) {
     console.error('Schema patch warning:', err.message);
   }

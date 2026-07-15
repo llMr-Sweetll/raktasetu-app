@@ -6,8 +6,10 @@ import { OAuth2Client } from 'google-auth-library';
 import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
 import { logAudit, validatePassword, blacklistToken } from '../utils/compliance.js';
+import { buildAccountExport } from '../utils/dataExport.js';
 
 const router = express.Router();
+const CURRENT_POLICY_VERSION = '2026-07-15';
 
 // Lazy — dotenv may load after this module is imported
 function getGoogleClient() {
@@ -63,7 +65,8 @@ router.post('/register', async (req, res) => {
     const {
       email, phone, password, name, role,
       blood_group, latitude, longitude, city, state,
-      hospital_name, address, license_number, consent_given
+      hospital_name, address, license_number, consent_given,
+      consent_policy_version
     } = req.body;
 
     if (!email || !phone || !password || !name || !role) {
@@ -74,9 +77,12 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Role must be donor or hospital' });
     }
 
-    // DPDP / HIPAA: require explicit consent for health data processing
+    // Privacy readiness: require an affirmative choice before health data processing.
     if (!consent_given) {
       return res.status(400).json({ success: false, error: 'Consent is required to process your personal and health data' });
+    }
+    if (consent_policy_version && consent_policy_version !== CURRENT_POLICY_VERSION) {
+      return res.status(409).json({ success: false, error: 'The privacy notice has changed. Refresh and review it before continuing.' });
     }
 
     // Password strength validation
@@ -98,14 +104,14 @@ router.post('/register', async (req, res) => {
 
     // Insert user
     const userResult = await query(
-      `INSERT INTO users (id, email, phone, password_hash, name, role, blood_group, latitude, longitude, city, state, is_verified, is_on_call, ping_radius_km, consent_given, consent_given_at, token_version, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
-       RETURNING id, email, phone, name, role, blood_group, latitude, longitude, city, state, is_verified, is_on_call, ping_radius_km, consent_given, created_at`,
+      `INSERT INTO users (id, email, phone, password_hash, name, role, blood_group, latitude, longitude, city, state, is_verified, is_on_call, ping_radius_km, consent_given, consent_given_at, consent_policy_version, consent_source, token_version, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+       RETURNING id, email, phone, name, role, blood_group, latitude, longitude, city, state, is_verified, is_on_call, ping_radius_km, consent_given, consent_given_at, consent_policy_version, consent_source, created_at`,
       [
         userId, email, phone, password_hash, name, role,
         blood_group || null, latitude || null, longitude || null, city || null, state || null,
         false, role === 'donor' ? false : null, role === 'donor' ? 10 : null,
-        true, now, 0, now, now
+        true, now, CURRENT_POLICY_VERSION, 'registration_form', 0, now, now
       ]
     );
 
@@ -204,7 +210,7 @@ router.post('/google', async (req, res) => {
       });
     }
 
-    const { id_token, consent_given } = req.body || {};
+    const { id_token, consent_given, consent_policy_version } = req.body || {};
     if (!id_token || typeof id_token !== 'string') {
       return res.status(400).json({ success: false, error: 'id_token is required' });
     }
@@ -250,6 +256,12 @@ router.post('/google', async (req, res) => {
           error: 'Consent is required to create an account with Google Sign-In',
         });
       }
+      if (consent_policy_version && consent_policy_version !== CURRENT_POLICY_VERSION) {
+        return res.status(409).json({
+          success: false,
+          error: 'The privacy notice has changed. Refresh and review it before continuing.',
+        });
+      }
       const userId = uuidv4();
       const now = new Date();
       // Opaque password — Google users sign in via Google only
@@ -258,12 +270,14 @@ router.post('/google', async (req, res) => {
       const insert = await query(
         `INSERT INTO users (
            id, email, phone, password_hash, name, role, is_verified, is_on_call,
-           ping_radius_km, consent_given, consent_given_at, token_version, google_sub, created_at, updated_at
-         ) VALUES ($1,$2,$3,$4,$5,'donor',false,false,10,true,$6,0,$7,$8,$8)
+           ping_radius_km, consent_given, consent_given_at, consent_policy_version,
+           consent_source, token_version, google_sub, created_at, updated_at
+         ) VALUES ($1,$2,$3,$4,$5,'donor',false,false,10,true,$6,$7,'google_sign_in',0,$8,$9,$9)
          RETURNING id, email, phone, name, role, blood_group, latitude, longitude, city, state,
                    is_verified, is_on_call, ping_radius_km, last_donation_date, next_eligible_date,
-                   token_version, consent_given, google_sub, created_at`,
-        [userId, email, phone, password_hash, name, now, googleSub, now]
+                   token_version, consent_given, consent_given_at, consent_policy_version,
+                   consent_source, google_sub, created_at`,
+        [userId, email, phone, password_hash, name, now, CURRENT_POLICY_VERSION, googleSub, now]
       );
       user = insert.rows[0];
     }
@@ -311,7 +325,7 @@ router.post('/logout', authenticate, async (req, res) => {
 
 /**
  * POST /api/auth/consent
- * Record or update user consent (DPDP compliance)
+ * Record or update user consent for privacy-readiness workflows.
  */
 router.post('/consent', authenticate, async (req, res) => {
   try {
@@ -320,14 +334,117 @@ router.post('/consent', authenticate, async (req, res) => {
       return res.status(400).json({ success: false, error: 'consent_given boolean is required' });
     }
     const result = await query(
-      'UPDATE users SET consent_given = $1, consent_given_at = NOW(), updated_at = NOW() WHERE id = $2 RETURNING id, consent_given, consent_given_at',
-      [consent_given, req.user.id]
+      `UPDATE users SET consent_given = $1, consent_given_at = NOW(),
+       consent_policy_version = $2, consent_source = 'account_settings', updated_at = NOW()
+       WHERE id = $3
+       RETURNING id, consent_given, consent_given_at, consent_policy_version, consent_source`,
+      [consent_given, CURRENT_POLICY_VERSION, req.user.id]
     );
     await logAudit({ userId: req.user.id, action: consent_given ? 'CONSENT_GIVEN' : 'CONSENT_REVOKED', resourceType: 'user', resourceId: req.user.id, req });
     return res.json({ success: true, data: { consent: result.rows[0] } });
   } catch (err) {
     console.error('Consent error:', err);
     return res.status(500).json({ success: false, error: 'Failed to update consent' });
+  }
+});
+
+/**
+ * GET /api/auth/export
+ * Export data scoped to the authenticated account.
+ */
+router.get('/export', authenticate, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const [userResult, hospitalResult] = await Promise.all([
+      query(
+        `SELECT id, email, phone, name, role, blood_group, latitude, longitude, city, state,
+                is_verified, is_on_call, ping_radius_km, last_donation_date, next_eligible_date,
+                consent_given, consent_given_at, consent_policy_version, consent_source,
+                created_at, updated_at
+         FROM users WHERE id = $1`,
+        [userId]
+      ),
+      query(
+        `SELECT id, name, address, license_number, latitude, longitude, city, state,
+                phone, is_verified, operating_hours, created_at
+         FROM hospitals WHERE user_id = $1`,
+        [userId]
+      ),
+    ]);
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    const hospital = hospitalResult.rows[0] || null;
+    const [
+      donationsResult,
+      responsesResult,
+      creditsResult,
+      familyResult,
+      notificationsResult,
+      requestsResult,
+    ] = await Promise.all([
+      query(
+        `SELECT id, request_id, hospital_id, units, blood_group, verified_at,
+                credits_earned, ref_code, created_at
+         FROM donations WHERE donor_id = $1 ORDER BY created_at DESC`,
+        [userId]
+      ),
+      query(
+        `SELECT id, request_id, status, responded_at, arrived_at, completed_at, created_at
+         FROM donor_responses WHERE donor_id = $1 ORDER BY created_at DESC`,
+        [userId]
+      ),
+      query(
+        `SELECT id, amount, type, description, related_donation_id, created_at
+         FROM credits WHERE donor_id = $1 ORDER BY created_at DESC`,
+        [userId]
+      ),
+      query(
+        `SELECT id, name, relationship, blood_group, created_at
+         FROM family_members WHERE donor_id = $1 ORDER BY created_at DESC`,
+        [userId]
+      ),
+      query(
+        `SELECT id, type, title, body, data, is_read, created_at
+         FROM notifications WHERE user_id = $1 ORDER BY created_at DESC`,
+        [userId]
+      ),
+      hospital
+        ? query(
+            `SELECT id, blood_group, units_needed, urgency, status, radius_km,
+                    latitude, longitude, notes, ref_code, needed_by, filled_at, created_at
+             FROM blood_requests WHERE hospital_id = $1 ORDER BY created_at DESC`,
+            [hospital.id]
+          )
+        : Promise.resolve({ rows: [] }),
+    ]);
+
+    const exportData = buildAccountExport({
+      user: userResult.rows[0],
+      hospital,
+      bloodRequests: requestsResult.rows,
+      donations: donationsResult.rows,
+      responses: responsesResult.rows,
+      credits: creditsResult.rows,
+      familyMembers: familyResult.rows,
+      notifications: notificationsResult.rows,
+    });
+
+    await logAudit({
+      userId,
+      action: 'ACCOUNT_DATA_EXPORTED',
+      resourceType: 'user',
+      resourceId: userId,
+      req,
+    });
+
+    res.setHeader('Cache-Control', 'no-store');
+    return res.json({ success: true, data: exportData });
+  } catch (err) {
+    console.error('Account export error:', err.message);
+    return res.status(500).json({ success: false, error: 'Failed to export account data' });
   }
 });
 
@@ -339,7 +456,9 @@ router.get('/me', authenticate, async (req, res) => {
   try {
     const result = await query(
       `SELECT id, email, phone, name, role, blood_group, latitude, longitude, city, state,
-              is_verified, is_on_call, ping_radius_km, last_donation_date, next_eligible_date, consent_given, created_at, updated_at
+              is_verified, is_on_call, ping_radius_km, last_donation_date, next_eligible_date,
+              consent_given, consent_given_at, consent_policy_version, consent_source,
+              created_at, updated_at
        FROM users WHERE id = $1`,
       [req.user.id]
     );
@@ -373,16 +492,24 @@ router.get('/me', authenticate, async (req, res) => {
 router.delete('/me', authenticate, async (req, res) => {
   try {
     const userId = req.user.id;
-    const anonymizedEmail = `deleted_${userId.slice(0, 8)}@anonymized.local`;
-    const anonymizedPhone = `0000000000`;
+    const anonymizedEmail = `deleted_${userId}@anonymized.local`;
+    const anonymizedPhone = `deleted_${userId.slice(0, 12)}`;
     const anonymizedName = 'Deleted User';
 
-    // Anonymize user record (soft delete)
+    await Promise.all([
+      query('DELETE FROM push_subscriptions WHERE user_id = $1', [userId]),
+      query('DELETE FROM family_members WHERE donor_id = $1', [userId]),
+      query('DELETE FROM notifications WHERE user_id = $1', [userId]),
+    ]);
+
+    // Anonymize the account while retaining referential integrity.
     await query(
       `UPDATE users SET
         email = $1, phone = $2, name = $3, password_hash = $4,
         is_on_call = false, is_verified = false, consent_given = false,
         latitude = NULL, longitude = NULL, blood_group = NULL,
+        google_sub = NULL, consent_given_at = NULL, consent_policy_version = NULL,
+        consent_source = 'account_deletion',
         updated_at = NOW(), deleted_at = NOW()
        WHERE id = $5`,
       [anonymizedEmail, anonymizedPhone, anonymizedName, '[DELETED]', userId]
@@ -394,9 +521,9 @@ router.delete('/me', authenticate, async (req, res) => {
       [userId]
     );
 
-    await logAudit({ userId, action: 'ACCOUNT_DELETED', resourceType: 'user', resourceId: userId, details: { reason: 'Right to Erasure (DPDP)' }, req });
+    await logAudit({ userId, action: 'ACCOUNT_DELETED', resourceType: 'user', resourceId: userId, details: { reason: 'User-requested account deletion' }, req });
 
-    return res.json({ success: true, data: { message: 'Account deleted successfully. Your personal data has been erased per DPDP Act requirements.' } });
+    return res.json({ success: true, data: { message: 'Account deleted and direct profile identifiers anonymized.' } });
   } catch (err) {
     console.error('Delete account error:', err);
     return res.status(500).json({ success: false, error: 'Failed to delete account' });

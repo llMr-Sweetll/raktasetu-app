@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at timestamptz DEFAULT now(),
   consent_given boolean NOT NULL DEFAULT false,
   consent_given_at timestamptz,
+  consent_policy_version varchar,
+  consent_source varchar,
   token_version integer NOT NULL DEFAULT 0,
   google_sub varchar UNIQUE,
   deleted_at timestamptz
