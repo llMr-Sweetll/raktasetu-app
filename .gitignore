@@ -48,3 +48,6 @@ coverage/
 
 # Cloudflare worker (deprecated - using Express backend)
 worker.js
+
+# Railway local link metadata
+.railway/

@@ -8,9 +8,8 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production
 
-# Copy app source
+# Copy app source (secrets come from runtime env, never bake .env into the image)
 COPY src/ ./src/
-COPY .env ./
 
 EXPOSE 3001
 

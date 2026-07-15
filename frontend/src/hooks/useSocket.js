@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
+import { SOCKET_URL } from '../config.js';
 
 export function useSocket(onEvent) {
   const socketRef = useRef(null);
@@ -8,7 +9,7 @@ export function useSocket(onEvent) {
     const token = localStorage.getItem('token');
     if (!token) return;
 
-    const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:3001', {
+    const socket = io(SOCKET_URL, {
       auth: { token },
       transports: ['websocket'],
     });

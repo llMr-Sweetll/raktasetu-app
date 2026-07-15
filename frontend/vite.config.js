@@ -3,7 +3,8 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/raktasetu-app/',
+  // Railway serves SPA at site root (unified with API). Local Vite still proxies /api.
+  base: '/',
   server: {
     port: 5173,
     proxy: {

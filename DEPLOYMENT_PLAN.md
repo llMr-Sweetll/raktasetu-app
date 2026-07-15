@@ -1,35 +1,34 @@
 # RaktaSetu Deployment Guide
 
-## Live Frontend
-**URL**: https://llMr-Sweetll.github.io/raktasetu-app/
+## Live app (Railway)
 
-The frontend is deployed to GitHub Pages from the `gh-pages` branch.
+Single Railway service serves the SPA and API:
 
-## Backend Deployment
+- SPA: `https://<your-app>.up.railway.app/`
+- Health: `https://<your-app>.up.railway.app/api/health`
 
-The backend requires a Node.js server with Socket.io support. Deploy to one of:
+GitHub Pages is **not** used for MVP hosting.
 
-### Option 1: Render (One-Click)
-Click the button in the README or use the `backend/render.yaml` blueprint.
+## Backend + Frontend Deployment (Railway)
 
-### Option 2: Fly.io
 ```bash
-cd backend
-flyctl launch --dockerfile Dockerfile
-```
-
-### Option 3: Railway / Heroku / VPS
-```bash
-cd backend
-npm install
-npm start
+npm i -g @railway/cli
+railway login
+railway init   # from repo root
+railway variables set DATABASE_URL="..." JWT_SECRET="..." JWT_EXPIRES_IN=7d NODE_ENV=production FRONTEND_ORIGINS="http://localhost:5173"
+railway up
+railway domain
 ```
 
 **Required Environment Variables:**
-- `DATABASE_URL` — Neon Postgres connection string
+- `DATABASE_URL` — Neon Postgres connection string (pooled, `sslmode=require`)
 - `JWT_SECRET` — Random secret for JWT signing
 - `JWT_EXPIRES_IN` — e.g. `7d`
-- `PORT` — Server port (defaults to 3001)
+- `NODE_ENV` — `production`
+- `FRONTEND_ORIGINS` — comma-separated extra origins (local Vite)
+- `PORT` — injected by Railway (do not hardcode)
+
+Nixpacks builds `frontend/dist` and starts Express, which serves the SPA when the dist folder exists.
 
 ## Mobile Builds
 
@@ -39,7 +38,6 @@ cd frontend
 npm run build
 npx cap sync ios
 npx cap open ios
-# Build in Xcode or use: xcodebuild
 ```
 
 ### Android
@@ -48,49 +46,16 @@ cd frontend
 npm run build
 npx cap sync android
 npx cap open android
-# Build in Android Studio or use: ./gradlew assembleRelease
 ```
 
-## Demo Credentials
+## API Endpoints (smoke)
 
-| Role | Phone / Email | Password |
-|------|--------------|----------|
-| Donor | `+919876543210` | `password123` |
-| Donor | `+919876543211` | `password123` |
-| Hospital | `+918312456789` | `password123` |
-
-## API Endpoints
-
-- `POST /api/auth/login` — Phone/email + password login
-- `POST /api/auth/register` — New donor/hospital registration
-- `GET /api/auth/me` — Current user profile
-- `GET /api/donor/dashboard` — Donor home stats + nearby requests
-- `PATCH /api/donor/on-call` — Toggle availability
-- `GET /api/donor/requests` — List nearby active requests
-- `POST /api/donor/respond/:id` — Accept/decline request
-- `POST /api/donor/arrived/:id` — Mark arrival
-- `GET /api/donor/credits` — Credit balance + history
-- `GET /api/donor/history` — Donation history
-- `PATCH /api/donor/profile` — Update profile
-- `GET /api/hospital/dashboard` — Hospital live board
-- `POST /api/hospital/requests` — Create new blood request
-- `GET /api/hospital/requests/:id` — Request detail
+- `GET /api/health` — Health check (preferred; legacy `GET /health` still works)
+- `POST /api/auth/login` — Login
 - `PATCH /api/hospital/requests/:id` — Update request status
 - `POST /api/hospital/verify-donation` — Verify donation + award credits
 - `GET /api/hospital/donors` — Nearby on-call donors
-- `GET /health` — Health check
 
 ## Socket.io Events
 
-- `donor:go-on-call` — Donor toggles availability
-- `donor:go-off-call` — Donor goes off-call
-- `hospital:new-request` — New blood request created
-- `donor:respond` — Donor accepts/declines
-- `donor:arrived` — Donor arrives at hospital
-- `hospital:verify` — Hospital verifies donation
-
-## Database Schema
-
-10 tables: `users`, `hospitals`, `blood_requests`, `donor_responses`, `donations`, `credits`, `family_members`, `notifications`, `addresses`, `sessions`.
-
-Seed data includes 6+ donors, 3+ hospitals, and 8+ blood requests in the Hubballi area.
+See README and backend socket handlers in `backend/src/server.js`.

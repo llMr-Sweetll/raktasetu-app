@@ -1,13 +1,16 @@
-name: Deploy Backend to Railway
+name: Deploy to Railway
 
 on:
   push:
     branches: [main]
     paths:
       - 'backend/**'
+      - 'frontend/**'
       - 'package.json'
       - 'start.sh'
       - 'railway.toml'
+      - 'railway.json'
+      - 'nixpacks.toml'
       - '.github/workflows/railway-deploy.yml'
 
 jobs:
@@ -21,6 +24,6 @@ jobs:
         run: npm install -g @railway/cli
 
       - name: Deploy to Railway
-        run: railway up --service raktasetu-backend
+        run: railway up --detach
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}

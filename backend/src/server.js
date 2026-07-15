@@ -1,5 +1,8 @@
 import express from 'express';
 import http from 'http';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -17,15 +20,22 @@ import adminRoutes from './routes/admin.js';
 
 dotenv.config();
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
-// Trust proxy (Cloudflare tunnel sends X-Forwarded-For)
+// Trust proxy (Railway / reverse proxies send X-Forwarded-For)
 app.set('trust proxy', 1);
 
 const server = http.createServer(app);
+const DEFAULT_ORIGINS = ['http://localhost:5173', 'http://localhost:3001'];
+const ALLOWED_ORIGINS = (process.env.FRONTEND_ORIGINS || DEFAULT_ORIGINS.join(','))
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 const io = new Server(server, {
   cors: {
-    origin: ['https://llMr-Sweetll.github.io', 'http://localhost:5173'],
+    origin: ALLOWED_ORIGINS,
     methods: ['GET', 'POST']
   }
 });
@@ -35,10 +45,11 @@ const io = new Server(server, {
  *  Middleware
  * =======================
  */
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false, // SPA assets + Socket.io on same origin
+}));
 
-// CORS — restrict to known frontend origins only
-const ALLOWED_ORIGINS = ['https://llMr-Sweetll.github.io', 'http://localhost:5173'];
+// CORS — FRONTEND_ORIGINS=comma-separated list (same-origin SPA needs no extra origin)
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || ALLOWED_ORIGINS.includes(origin)) {
@@ -130,7 +141,25 @@ app.get('/health', (req, res) => {
 });
 
 /**
- * 404 handler
+ * Serve Vite SPA from frontend/dist (unified Railway hosting).
+ * Same-origin: browser hits /api + Socket.io on this service.
+ */
+const frontendDist = path.resolve(__dirname, '../../frontend/dist');
+const serveFrontend = process.env.SERVE_FRONTEND !== 'false' && fs.existsSync(frontendDist);
+
+if (serveFrontend) {
+  app.use(express.static(frontendDist, { index: false }));
+  app.get(/^(?!\/api(?:\/|$)|\/socket\.io(?:\/|$)).*/, (req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    res.sendFile(path.join(frontendDist, 'index.html'), (err) => {
+      if (err) next();
+    });
+  });
+  console.log(`Serving frontend from ${frontendDist}`);
+}
+
+/**
+ * 404 handler (API + missing routes)
  */
 app.use((req, res) => {
   res.status(404).json({ success: false, error: 'Endpoint not found' });
