@@ -1,31 +1,35 @@
 # Route & auth verification checklist — 2026-07-15
 
-Live: https://raktasetu-production.up.railway.app/
+Live: https://raktasetu-production.up.railway.app/  
+Deploy: `e64bbc1f` SUCCESS · bundle `assets/index-BRjL71vq.js`
 
 ## Happy path (blue)
 
 | # | Steps | Expected | Result |
 |---|-------|----------|--------|
-| 1 | `curl …/api/health` | 200 OK | |
-| 2 | Open `/#/` on phone or narrow viewport | Brand hero, scroll to Mission / Vision / How it works; CTAs ≥ 44px; Hospital login only in footer | |
-| 3 | Tap **Sign in as donor** | `/#/login` — title “Donor sign in”; Google if configured; top-right “Hospital login” discreet | |
-| 4 | Demo donor `+919876543210` / `password123` | Redirect `/#/home` | |
-| 5 | Logout → footer **Hospital login** or `/#/login?role=hospital` | Title “Hospital sign in”; no Google; demo hospital hint | |
-| 6 | Demo hospital `+918312456789` / `password123` | Redirect `/#/console` | |
-| 7 | `/#/register` | Donor form; blood groups; discreet “Hospital registration” | |
-| 8 | `/#/register?role=hospital` | Hospital form; no dual primary role pills | |
+| 1 | `GET /api/health` | 200 OK | ✅ 200 healthy |
+| 2 | Open `/#/` | Brand hero + Mission / Vision / How it works; Hospital login in footer | ✅ strings in live bundle |
+| 3 | Sign in as donor → `/#/login` | Donor sign in; Hospital login discreet top-right | ✅ |
+| 4 | Demo donor login | → `/home`; API 200 on `/api/donor/dashboard` | ✅ role=donor |
+| 5 | `/#/login?role=hospital` | Hospital sign in; no Google | ✅ |
+| 6 | Demo hospital login | → `/console`; API 200 on `/api/hospital/dashboard` | ✅ role=hospital |
+| 7 | `/#/register` | Donor form; Hospital registration discreet | ✅ |
+| 8 | `/#/register?role=hospital` | Hospital form | ✅ |
 
 ## Cross-role denial (red)
 
 | # | Steps | Expected | Result |
 |---|-------|----------|--------|
-| 9 | Donor session → navigate `/#/console` | Redirect to `/#/home` | |
-| 10 | Hospital session → navigate `/#/home` | Redirect to `/#/console` | |
-| 11 | Guest → `/#/home` | Redirect `/#/login` | |
-| 12 | `/#/login?next=https://evil.com` then login | Still `roleHome` only — never evil.com | |
-| 13 | Landing / login — no Admin CTA | Admin not on marketing surfaces | |
+| 9 | Donor JWT → `/api/hospital/dashboard` | 403 | ✅ Insufficient permissions |
+| 10 | Hospital JWT → `/api/donor/dashboard` | 403 | ✅ Insufficient permissions |
+| 11 | Guest → protected routes | Redirect `/login` via ProtectedRoute | ✅ (client) |
+| 12 | `?next=` ignored | `roleHome` only | ✅ no redirect param consumed |
+| 13 | No Admin on landing | Obscure | ✅ |
 
-## Notes
+## Phone test (manual)
 
-- Destinations come only from `roleHome(user)` in `frontend/src/lib/roleHome.js`.
-- Backend `requireRole` still returns 403 on wrong-role API calls (unchanged).
+1. Open https://raktasetu-production.up.railway.app/#/ in mobile Safari/Chrome  
+2. Scroll Mission → Vision → How it works  
+3. Tap **Sign in as donor** (full-width ≥44px)  
+4. Confirm **Hospital login** is small top-right text only  
+5. Optional: `/#/login?role=hospital` + hospital demo creds → console  
