@@ -4,7 +4,10 @@ import { runWithAuthorizationContext } from '../db.js';
 export const authenticate = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
-    return res.status(401).json({ success: false, error: 'Authentication required' });
+    return res.status(401).json({
+      success: false,
+      error: { code: 'AUTHENTICATION_REQUIRED', message: 'Authentication required' },
+    });
   }
   const token = authHeader.slice(7);
   try {
@@ -27,7 +30,10 @@ export const authenticate = async (req, res, next) => {
 
 export const requireRole = (...roles) => (req, res, next) => {
   if (!roles.includes(req.user.role)) {
-    return res.status(403).json({ success: false, error: 'Insufficient permissions' });
+    return res.status(403).json({
+      success: false,
+      error: { code: 'ROLE_DENIED', message: 'Insufficient permissions' },
+    });
   }
   next();
 };
