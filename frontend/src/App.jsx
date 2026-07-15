@@ -3,16 +3,16 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth.js';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import { T } from './theme.js';
-import { API_URL, APP_VERSION } from './config.js';
 import { roleHome } from './lib/roleHome.js';
-
-console.log('[RaktaSetu] Version:', APP_VERSION, 'API:', API_URL);
 
 /* Auth / public */
 import Landing from './screens/Landing.jsx';
 import Login from './screens/Login.jsx';
 import Register from './screens/Register.jsx';
 import PrivacyPolicy from './screens/PrivacyPolicy.jsx';
+import TermsOfService from './screens/TermsOfService.jsx';
+import DataRights from './screens/DataRights.jsx';
+import SecurityReadiness from './screens/SecurityReadiness.jsx';
 
 /* Donor */
 import DonorHome from './screens/DonorHome.jsx';
@@ -31,16 +31,25 @@ import ConsoleVerify from './screens/ConsoleVerify.jsx';
 /* Admin */
 import AdminDashboard from './screens/AdminDashboard.jsx';
 
-const PUBLIC_PATHS = new Set(['/', '/login', '/register', '/privacy']);
+const PUBLIC_PATHS = new Set([
+  '/',
+  '/login',
+  '/register',
+  '/privacy',
+  '/terms',
+  '/data-rights',
+  '/security-readiness',
+]);
 
 function App() {
   const { user, loading } = useAuth();
   const location = useLocation();
   const isAdmin = location.pathname.startsWith('/admin');
   const isPublic = PUBLIC_PATHS.has(location.pathname);
-  const isFullBleed = location.pathname === '/' || location.pathname === '/login';
+  const isPublicSite = isPublic;
+  const isDarkPublic = location.pathname === '/' || location.pathname === '/login';
 
-  // Only block protected routes while session is resolving — never the landing.
+  // Only block protected routes while the session is resolving.
   if (loading && !isPublic) {
     return (
       <div style={{
@@ -56,12 +65,12 @@ function App() {
   return (
     <div style={{
       fontFamily: "'Public Sans', 'Segoe UI', system-ui, sans-serif",
-      background: isFullBleed ? '#0A0506' : T.porcelain,
+      background: isDarkPublic ? '#0A0506' : T.porcelain,
       minHeight: '100vh',
       color: T.ink,
     }}>
       <div style={{
-        maxWidth: isAdmin || isFullBleed ? '100%' : 430,
+        maxWidth: isAdmin || isPublicSite ? '100%' : 430,
         margin: '0 auto',
         minHeight: '100vh',
         position: 'relative',
@@ -72,6 +81,9 @@ function App() {
           <Route path="/login" element={user ? <Navigate to={roleHome(user)} replace /> : <Login />} />
           <Route path="/register" element={user ? <Navigate to={roleHome(user)} replace /> : <Register />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/data-rights" element={<DataRights />} />
+          <Route path="/security-readiness" element={<SecurityReadiness />} />
 
           {/* Donor routes */}
           <Route path="/home" element={

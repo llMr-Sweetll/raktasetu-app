@@ -61,7 +61,7 @@ export default function DonorHome() {
   );
 
   const name = user?.name || 'Donor';
-  const blood = user?.blood_group || '—';
+  const blood = user?.blood_group || 'Not set';
   const credits = dashboard?.credits ?? 0;
   const eligible = dashboard?.eligible ?? true;
   const nextEligible = dashboard?.next_eligible_date;

@@ -17,7 +17,7 @@ api.interceptors.response.use(
   (err) => {
     if (err.response?.status === 401) {
       localStorage.removeItem('token');
-      // HashRouter — stay on this host (not GitHub Pages /raktasetu-app/)
+      // HashRouter keeps navigation on this host.
       window.location.hash = '#/login';
     }
     return Promise.reject(err);

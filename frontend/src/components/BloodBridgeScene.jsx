@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
 /**
- * Living Bridge — particle bloodstream between donor ↔ hospital nodes.
+ * Living Bridge particle bloodstream between donor and hospital nodes.
  * Mobile/WebView: lower dpr + particle count. Pauses when tab hidden.
  * Disposes WebGL on unmount. Respects prefers-reduced-motion.
  */
@@ -139,6 +139,7 @@ export default function BloodBridgeScene() {
       camera.aspect = nw / nh;
       camera.updateProjectionMatrix();
       renderer.setSize(nw, nh);
+      if (reduceMotion) renderer.render(scene, camera);
     };
     window.addEventListener('resize', onResize);
 
@@ -171,6 +172,7 @@ export default function BloodBridgeScene() {
     };
 
     const onVisibility = () => {
+      if (reduceMotion) return;
       if (document.hidden) {
         running = false;
         cancelAnimationFrame(raf);
@@ -182,7 +184,12 @@ export default function BloodBridgeScene() {
     };
     document.addEventListener('visibilitychange', onVisibility);
 
-    raf = requestAnimationFrame(tick);
+    if (reduceMotion) {
+      camera.lookAt(0, 0.4, 0);
+      renderer.render(scene, camera);
+    } else {
+      raf = requestAnimationFrame(tick);
+    }
 
     return () => {
       running = false;

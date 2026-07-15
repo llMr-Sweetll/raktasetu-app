@@ -36,13 +36,13 @@ export default function DonorCredits() {
   return (
     <div style={{ padding: '18px 18px 90px', maxWidth: 430, margin: '0 auto' }}>
       <h2 style={{ fontFamily: display, fontWeight: 800, fontSize: 22, margin: 0, color: T.ink }}>Credits</h2>
-      <p style={{ fontFamily: body, fontSize: 13, color: T.mut, margin: '4px 0 14px' }}>Your digital replacement card — no paper, no lost cards.</p>
+      <p style={{ fontFamily: body, fontSize: 13, color: T.mut, margin: '4px 0 14px' }}>Your digital replacement card, with no paper to lose.</p>
 
       <Card style={{ background: T.oxblood, borderColor: T.oxbloodDark }}>
         <p style={{ fontFamily: body, fontSize: 11.5, color: '#E8B9C2', margin: 0, textTransform: 'uppercase', letterSpacing: '.08em' }}>Balance</p>
         <p style={{ fontFamily: display, fontWeight: 800, fontSize: 42, color: '#fff', margin: '2px 0 0', lineHeight: 1 }}>{balance}</p>
         <p style={{ fontFamily: body, fontSize: 12.5, color: '#E8B9C2', margin: '10px 0 0' }}>
-          100 credits waive 1 replacement unit — for you or 4 registered family members.
+          100 credits waive 1 replacement unit for you or up to 4 registered family members.
         </p>
       </Card>
 

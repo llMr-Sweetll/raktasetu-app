@@ -1,5 +1,5 @@
 /**
- * Hardcoded role destinations — never trust query redirect params (no open redirects).
+ * Hardcoded role destinations. Never trust query redirect parameters.
  */
 export function roleHome(user) {
   if (!user) return '/login';
@@ -8,7 +8,7 @@ export function roleHome(user) {
   return '/home';
 }
 
-/** Auth screen mode from ?role= — defaults to donor. */
+/** Auth screen mode from ?role=. Defaults to donor. */
 export function parseAuthRole(searchParams) {
   const r = (typeof searchParams?.get === 'function'
     ? searchParams.get('role')

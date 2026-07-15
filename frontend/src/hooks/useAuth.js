@@ -52,6 +52,7 @@ function useAuthState() {
     const { data } = await api.post('/auth/google', {
       id_token: idToken,
       consent_given: consentGiven,
+      consent_policy_version: '2026-07-15',
     });
     const token = data.data?.token || data.token;
     const nextUser = data.data?.user || data.user;

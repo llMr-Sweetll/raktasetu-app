@@ -1,114 +1,198 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Shield } from 'lucide-react';
-import { T } from '../theme.js';
+import { Link } from 'react-router-dom';
+import PublicShell from '../components/PublicShell.jsx';
+import usePageMeta from '../hooks/usePageMeta.js';
 
-const body = "'Public Sans', 'Segoe UI', system-ui, sans-serif";
-const display = "'Anek Latin', 'Segoe UI', system-ui, sans-serif";
+function PolicySection({ title, children }) {
+  return (
+    <section className="policy-section">
+      <h2>{title}</h2>
+      {children}
+    </section>
+  );
+}
 
 export default function PrivacyPolicy() {
-  const navigate = useNavigate();
-
-  const Section = ({ title, children }) => (
-    <div style={{ marginBottom: 24 }}>
-      <h2 style={{ fontFamily: display, fontWeight: 800, fontSize: 16, color: T.ink, margin: '0 0 8px' }}>{title}</h2>
-      <div style={{ fontFamily: body, fontSize: 13.5, color: T.mut, lineHeight: 1.6 }}>
-        {children}
-      </div>
-    </div>
-  );
+  usePageMeta({
+    title: 'Privacy Policy | RaktaSetu',
+    description: 'How RaktaSetu collects, uses, stores, and shares information for blood donor coordination.',
+    path: '/privacy',
+  });
 
   return (
-    <div style={{ minHeight: '100vh', padding: '24px 20px 40px', background: T.porcelain }}>
-      <div style={{ maxWidth: 560, margin: '0 auto' }}>
-        <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 18, fontFamily: body, fontSize: 13, color: T.mut }}>
-          <ArrowLeft size={16} /> Back
-        </button>
+    <PublicShell>
+      <article className="policy-wrap">
+        <p className="policy-kicker">Privacy</p>
+        <h1>Privacy Policy</h1>
+        <p className="policy-lede">
+          This policy explains how RaktaSetu handles information when donors and
+          participating hospitals use the service.
+        </p>
+        <p className="policy-date">Effective date: 15 July 2026 · Policy version: 2026-07-15</p>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-          <Shield size={22} color={T.oxblood} />
-          <h1 style={{ fontFamily: display, fontWeight: 800, fontSize: 22, color: T.ink, margin: 0 }}>Privacy Policy</h1>
+        <div className="policy-callout">
+          <strong>Important status note:</strong> This is a draft operational policy for
+          the current product and must be reviewed by qualified counsel and the
+          organization responsible for RaktaSetu. Publishing it does not establish GDPR,
+          DPDP Act, or HIPAA compliance.
         </div>
-        <p style={{ fontFamily: body, fontSize: 12, color: T.faint, margin: '0 0 24px' }}>Last updated: {new Date().toLocaleDateString()}</p>
 
-        <Section title="1. Data We Collect">
-          <p>We collect the following personal and health data during registration and use:</p>
-          <ul style={{ paddingLeft: 20, margin: '8px 0' }}>
-            <li><strong>Identity:</strong> Full name, date of birth</li>
-            <li><strong>Contact:</strong> Phone number, email address</li>
-            <li><strong>Health:</strong> Blood group (donors only)</li>
-            <li><strong>Location:</strong> City, state, and approximate geolocation for matching</li>
-            <li><strong>Usage:</strong> Donation history, response times, verification status</li>
-          </ul>
-        </Section>
-
-        <Section title="2. Purpose of Processing">
-          <p>Your data is processed solely for the following purposes:</p>
-          <ul style={{ paddingLeft: 20, margin: '8px 0' }}>
-            <li>Matching blood donors with nearby hospitals in emergencies</li>
-            <li>Verifying donor identity and eligibility</li>
-            <li>Maintaining donation records and credit tracking</li>
-            <li>Sending emergency blood request notifications</li>
-            <li>Compliance with applicable health regulations</li>
-          </ul>
-        </Section>
-
-        <Section title="3. Data Sharing">
-          <p>We do not sell your data. Information is shared only as follows:</p>
-          <ul style={{ paddingLeft: 20, margin: '8px 0' }}>
-            <li><strong>Matched hospitals:</strong> When you accept a donation request, the hospital receives your name, blood group, and a masked phone number. Your full phone number is only revealed after you confirm arrival.</li>
-            <li><strong>Service providers:</strong> Our database is hosted on Neon (US-based cloud PostgreSQL). No third-party analytics or advertising trackers are used.</li>
-            <li><strong>Legal obligations:</strong> We may disclose data if required by law or to protect vital interests.</li>
-          </ul>
-        </Section>
-
-        <Section title="4. Your Rights (DPDP Act 2023)">
-          <p>Under India's Digital Personal Data Protection Act, 2023, you have the right to:</p>
-          <ul style={{ paddingLeft: 20, margin: '8px 0' }}>
-            <li><strong>Access:</strong> Request a copy of your personal data</li>
-            <li><strong>Correction:</strong> Update inaccurate or incomplete information</li>
-            <li><strong>Erasure:</strong> Request deletion of your account and associated data</li>
-            <li><strong>Withdraw consent:</strong> Opt out of data processing at any time</li>
-            <li><strong>Grievance redressal:</strong> File a complaint with our Data Protection Officer</li>
-          </ul>
-          <p>To exercise any of these rights, contact us at the email below.</p>
-        </Section>
-
-        <Section title="5. Data Retention">
-          <p>We retain your personal data for <strong>3 years</strong> after your last activity (donation, login, or profile update). After this period, your data is automatically anonymized or deleted, unless longer retention is required by law.</p>
-        </Section>
-
-        <Section title="6. Security Measures">
-          <p>We implement industry-standard security practices:</p>
-          <ul style={{ paddingLeft: 20, margin: '8px 0' }}>
-            <li>Passwords are hashed using bcrypt</li>
-            <li>All API communications use HTTPS/TLS encryption</li>
-            <li>Phone numbers are masked in hospital-facing interfaces</li>
-            <li>Access to donor health data is restricted to matched hospitals only</li>
-          </ul>
-        </Section>
-
-        <Section title="7. Cross-Border Data Transfer">
-          <p>Our database is hosted on <strong>Neon Postgres</strong> in the United States. By using RaktaSetu, you consent to the transfer and storage of your data in the US, which may have different data protection laws than India. We ensure adequate safeguards are in place through our service provider's security certifications.</p>
-        </Section>
-
-        <Section title="8. Contact & Grievances">
-          <p>For privacy-related questions, data access requests, or grievances:</p>
-          <p style={{ margin: '8px 0' }}>
-            <strong>Privacy:</strong> privacy@raktasetu.org<br />
-            <strong>Support:</strong> support@raktasetu.org<br />
-            <strong>Data Protection Officer:</strong> RaktaSetu Trust, Bengaluru, Karnataka<br />
-            <strong>Live app:</strong> https://raktasetu-production.up.railway.app/
+        <PolicySection title="1. Who is responsible for the data">
+          <p>
+            RaktaSetu operates the application and determines how the product processes
+            account and coordination data. The legal entity acting as data controller or
+            data fiduciary, its registered address, and its appointed privacy contact
+            have not yet been confirmed in this application.
           </p>
-          <p>If you are unsatisfied with our response, you may approach the <strong>Data Protection Board of India</strong>.</p>
-        </Section>
-
-        <div style={{ marginTop: 32, padding: '14px 16px', background: T.arterialSoft, borderRadius: 12, border: '1px solid #F3C9D0' }}>
-          <p style={{ fontFamily: body, fontSize: 12.5, color: T.arterial, margin: 0, lineHeight: 1.5 }}>
-            <strong>Consent reminder:</strong> By registering, you explicitly consent to the processing of your personal and health data for blood donation matching purposes. You may withdraw consent at any time by deleting your account.
+          <p>
+            Before production use beyond evaluation, the operating organization must
+            publish those details and confirm whether participating hospitals act as
+            independent controllers, joint controllers, processors, or another legally
+            recognized role.
           </p>
-        </div>
-      </div>
-    </div>
+        </PolicySection>
+
+        <PolicySection title="2. Information we collect">
+          <ul>
+            <li><strong>Account details:</strong> name, email address, phone number, password hash, role, city, state, and account timestamps.</li>
+            <li><strong>Donor details:</strong> blood group, date of birth supplied during registration, availability, approximate location, preferred request radius, eligibility dates, and verification state.</li>
+            <li><strong>Hospital details:</strong> organization name, address, license information when supplied, location, contact details, and verification state.</li>
+            <li><strong>Coordination records:</strong> blood requests, donor responses, arrival states, donation records, credits, and related timestamps.</li>
+            <li><strong>Device and security data:</strong> IP address, user agent, audit events, authentication identifiers, and push notification subscription information.</li>
+            <li><strong>Google sign-in data:</strong> Google account identifier, name, and email address when a donor chooses Google Identity Services.</li>
+          </ul>
+          <p>
+            Blood group, donation history, and eligibility information can be sensitive
+            personal data. Users should provide only information needed for the service.
+          </p>
+        </PolicySection>
+
+        <PolicySection title="3. Why information is used">
+          <ul>
+            <li>Create and secure donor or hospital accounts.</li>
+            <li>Identify compatible requests using blood group, availability, and distance.</li>
+            <li>Coordinate responses between donors and participating hospitals.</li>
+            <li>Record completed donation verification and related credits.</li>
+            <li>Send requested in-app, local, or push notifications.</li>
+            <li>Prevent abuse, enforce role permissions, investigate failures, and maintain audit records.</li>
+            <li>Respond to access, correction, export, deletion, and support requests.</li>
+          </ul>
+          <p>
+            The final legal basis for each purpose depends on the user, location, operator,
+            and hospital relationship. Possible bases can include explicit consent,
+            contract, legitimate interests, vital interests, and legal obligations.
+            Counsel must approve the applicable basis and required notices before broad
+            production processing.
+          </p>
+        </PolicySection>
+
+        <PolicySection title="4. When information is shared">
+          <p>RaktaSetu does not sell personal information or use it for advertising.</p>
+          <ul>
+            <li><strong>Participating hospitals:</strong> receive information needed to review and coordinate an accepted request, subject to role-based access.</li>
+            <li><strong>Infrastructure providers:</strong> Railway hosts the service and Neon provides PostgreSQL database infrastructure. Their processing locations depend on the configured service regions.</li>
+            <li><strong>Google:</strong> provides Identity Services only on the donor sign-in page when Google sign-in is configured and loaded.</li>
+            <li><strong>Authorities or safety recipients:</strong> information may be disclosed when the operator determines that law requires it or a valid emergency process applies.</li>
+          </ul>
+          <p>
+            The operating organization must maintain and publish a current subprocessor
+            inventory and execute any required data processing agreements.
+          </p>
+        </PolicySection>
+
+        <PolicySection title="5. Browser storage and cookies">
+          <p>
+            The web application stores an essential authentication token in browser local
+            storage after sign-in. It is used to keep the session active and is removed
+            when the user signs out or the session is rejected. Local storage is not a
+            cookie, but it remains accessible to scripts running on the same site.
+          </p>
+          <p>
+            RaktaSetu does not currently include advertising or analytics trackers and
+            does not set nonessential cookies in its own code. For that reason, the app
+            does not display a general cookie consent banner. Google Identity Services
+            may use Google-controlled storage or cookies according to Google's policies
+            when a donor opens the sign-in page.
+          </p>
+        </PolicySection>
+
+        <PolicySection title="6. Retention and deletion">
+          <p>
+            Account data and coordination records are currently retained while an account
+            is active and until deletion or operational cleanup occurs. The code supports
+            account anonymization, but it does not yet enforce a complete, legally
+            approved retention schedule across every record type and backup.
+          </p>
+          <p>
+            The operator must approve retention periods for accounts, requests,
+            donations, audit logs, backups, and legal holds. A deletion request can
+            anonymize direct account identifiers while some transaction or audit records
+            may be retained when a valid legal, safety, or integrity need applies.
+          </p>
+        </PolicySection>
+
+        <PolicySection title="7. International processing">
+          <p>
+            Railway, Neon, Google, and other configured providers may process information
+            outside the user's country. The operator must confirm actual regions,
+            restricted transfer rules, contractual safeguards, and any required transfer
+            impact assessment before production use in affected jurisdictions.
+          </p>
+        </PolicySection>
+
+        <PolicySection title="8. Security">
+          <p>
+            Current technical safeguards include TLS in production, password hashing,
+            role-based API authorization, request limits, selected audit logging, token
+            invalidation, security headers, and data export and deletion controls.
+          </p>
+          <p>
+            No online service can guarantee absolute security. Organizational controls
+            such as access reviews, workforce training, incident response, vendor review,
+            backup testing, and breach notification procedures are not established by
+            this source code. See the <Link to="/security-readiness">Security and Readiness Statement</Link>.
+          </p>
+        </PolicySection>
+
+        <PolicySection title="9. Your choices and rights">
+          <p>
+            Depending on applicable law, a person may have rights to access, correct,
+            export, delete, restrict, or object to processing, withdraw consent, and
+            complain to a supervisory authority. These rights can be limited by law and
+            must be evaluated for each request.
+          </p>
+          <p>
+            Signed-in users can use the <Link to="/data-rights">Data Rights Center</Link> to
+            download an account export or request account deletion. Requests can also be
+            sent to <a href="mailto:privacy@raktasetu.org">privacy@raktasetu.org</a>.
+          </p>
+        </PolicySection>
+
+        <PolicySection title="10. Children">
+          <p>
+            Donor registration is intended for people aged 18 or older. RaktaSetu is not
+            designed for children to create donor accounts. If information about a child
+            was submitted improperly, contact the privacy address so the operator can
+            review and remove it where appropriate.
+          </p>
+        </PolicySection>
+
+        <PolicySection title="11. Policy updates and contact">
+          <p>
+            Material changes should be communicated in the application and recorded with
+            a new policy version and effective date. The current consent record stores
+            the policy version for new registrations.
+          </p>
+          <p>
+            Privacy and data-rights requests: <a href="mailto:privacy@raktasetu.org">privacy@raktasetu.org</a><br />
+            General support: <a href="mailto:support@raktasetu.org">support@raktasetu.org</a>
+          </p>
+          <p>
+            These inboxes must be actively monitored and connected to an approved request
+            handling process. The application cannot verify that operational requirement.
+          </p>
+        </PolicySection>
+      </article>
+    </PublicShell>
   );
 }

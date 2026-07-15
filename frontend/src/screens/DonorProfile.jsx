@@ -51,11 +51,11 @@ export default function DonorProfile() {
   };
 
   const name = user?.name || 'Donor';
-  const blood = user?.blood_group || '—';
+  const blood = user?.blood_group || 'Not set';
   const verified = user?.is_verified || false;
   const nextEligible = user?.next_eligible_date;
   const donationCount = history.length;
-  const donorSince = user?.created_at ? new Date(user.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : '—';
+  const donorSince = user?.created_at ? new Date(user.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : 'Not available';
 
   return (
     <div style={{ padding: '18px 18px 90px', maxWidth: 430, margin: '0 auto' }}>
@@ -120,7 +120,7 @@ export default function DonorProfile() {
                 setNotifBusy(true);
                 setNotifMsg('');
                 try {
-                  await showLocalNotification('RaktaSetu', 'Local notification works — you can receive alerts on this device.');
+                  await showLocalNotification('RaktaSetu', 'Local notification works. You can receive alerts on this device.');
                   setNotifMsg('Local notification sent.');
                 } catch (e) {
                   setNotifMsg(e.message || 'Failed');
@@ -215,6 +215,17 @@ export default function DonorProfile() {
           <div>
             <p style={{ fontFamily: display, fontWeight: 700, fontSize: 13.5, margin: 0, color: T.ink }}>Donation history</p>
             <p style={{ fontFamily: body, fontSize: 12, color: T.faint, margin: '2px 0 0' }}>{donationCount} donations recorded</p>
+          </div>
+        </div>
+        <ArrowRight size={16} color={T.faint} />
+      </Card>
+
+      <Card style={{ marginTop: 10, padding: 13, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => navigate('/data-rights')}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <ShieldCheck size={17} color={T.oxblood} />
+          <div>
+            <p style={{ fontFamily: display, fontWeight: 700, fontSize: 13.5, margin: 0, color: T.ink }}>Privacy and data rights</p>
+            <p style={{ fontFamily: body, fontSize: 12, color: T.faint, margin: '2px 0 0' }}>Export or delete your account data</p>
           </div>
         </div>
         <ArrowRight size={16} color={T.faint} />

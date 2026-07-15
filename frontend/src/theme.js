@@ -1,4 +1,4 @@
-// Design tokens and constants — NO React imports, NO circular deps
+// Design tokens and constants with no React imports or circular dependencies.
 export const T = {
   oxblood: '#7A1626',
   oxbloodDark: '#5E0F1D',

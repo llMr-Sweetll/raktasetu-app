@@ -5,6 +5,7 @@ import { registerSW } from 'virtual:pwa-register'
 import App from './App.jsx'
 import { AuthProvider } from './hooks/useAuth.js'
 import './index.css'
+import './public.css'
 
 try {
   registerSW({ immediate: true })
@@ -17,7 +18,6 @@ try {
   if (!root) {
     throw new Error('Root element #root not found in DOM')
   }
-  console.log('[RaktaSetu] main.jsx executing, root found:', !!root)
   ReactDOM.createRoot(root).render(
     <React.StrictMode>
       <HashRouter>
@@ -27,17 +27,11 @@ try {
       </HashRouter>
     </React.StrictMode>,
   )
-  console.log('[RaktaSetu] React render called successfully')
 } catch (err) {
-  console.error('[RaktaSetu] FATAL render error:', err)
-  const log = document.getElementById('error-log')
-  if (log) {
-    log.style.display = 'block'
-    log.textContent = 'FATAL RENDER ERROR: ' + (err.message || err) + '\n\n' + (err.stack || 'No stack trace')
-  }
-  // Also show in root as fallback
+  console.error('[RaktaSetu] The application could not start.')
   const root = document.getElementById('root')
   if (root) {
-    root.innerHTML = '<div style="padding:40px; font-family:system-ui; color:#7A1626;"><h2>RaktaSetu failed to load</h2><p style="color:#333; white-space:pre-wrap; font-family:monospace; font-size:13px;">' + (err.message || err) + '</p><p>Please check the browser console for details.</p></div>'
+    root.innerHTML = '<div style="min-height:100vh;display:grid;place-items:center;padding:32px;font-family:system-ui;color:#17151A;background:#F5F3F0;text-align:center;"><div><h1>RaktaSetu could not load</h1><p style="margin-top:12px;color:#6F6963;">Check your connection, then refresh the page.</p><button id="reload-app" style="min-height:44px;margin-top:18px;padding:10px 18px;border:0;border-radius:8px;background:#7A1626;color:#fff;font-weight:700;">Refresh</button></div></div>'
+    document.getElementById('reload-app')?.addEventListener('click', () => window.location.reload())
   }
 }

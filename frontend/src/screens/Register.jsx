@@ -5,6 +5,7 @@ import { T, GROUPS } from '../theme.js';
 import Btn from '../components/Btn.jsx';
 import { useAuth } from '../hooks/useAuth.js';
 import { roleHome, parseAuthRole } from '../lib/roleHome.js';
+import usePageMeta from '../hooks/usePageMeta.js';
 
 const body = "'Public Sans', 'Segoe UI', system-ui, sans-serif";
 const display = "'Anek Latin', 'Segoe UI', system-ui, sans-serif";
@@ -27,10 +28,18 @@ export default function Register() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  usePageMeta({
+    title: isHospital ? 'Register a Hospital | RaktaSetu' : 'Create a Donor Account | RaktaSetu',
+    description: isHospital
+      ? 'Register a hospital or blood bank to coordinate blood requests through RaktaSetu.'
+      : 'Create a RaktaSetu donor account and choose when you are available for compatible requests.',
+    path: '/register',
+  });
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!name || !phone || !password || !city || !state || !dob) {
+    if (!name || !phone || !email || !password || !city || !state || !dob) {
       setError('Please fill all required fields');
       return;
     }
@@ -56,6 +65,7 @@ export default function Register() {
       const payload = {
         name, phone, email, password, role, city, state,
         blood_group: bloodGroup, dob, consent_given: true,
+        consent_policy_version: '2026-07-15',
       };
       const user = await register(payload);
       navigate(roleHome(user));
@@ -136,13 +146,13 @@ export default function Register() {
           )}
         </div>
 
-        <p style={{ fontFamily: display, fontWeight: 800, fontSize: 22, color: T.ink, margin: '0 0 4px' }}>
+        <h1 style={{ fontFamily: display, fontWeight: 800, fontSize: 22, color: T.ink, margin: '0 0 4px' }}>
           {isHospital ? 'Register hospital' : 'Create donor account'}
-        </p>
+        </h1>
         <p style={{ fontFamily: body, fontSize: 13, color: T.mut, margin: '0 0 20px' }}>
           {isHospital
             ? 'Join RaktaSetu as a blood bank or hospital'
-            : 'Join the living bridge — donate when nearby patients need you'}
+            : 'Join the living bridge and respond when nearby patients need you'}
         </p>
 
         <form onSubmit={handleSubmit}>
@@ -150,7 +160,7 @@ export default function Register() {
             <div style={{
               background: T.arterialSoft, border: '1px solid #F3C9D0', borderRadius: 10,
               padding: '10px 14px', marginBottom: 14, fontFamily: body, fontSize: 13, color: T.arterial,
-            }}>
+            }} role="alert">
               {error}
             </div>
           )}
@@ -161,7 +171,7 @@ export default function Register() {
             </label>
             <div style={{ position: 'relative' }}>
               <User size={16} color={T.faint} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
-              <input type="text" placeholder={isHospital ? 'Hospital name' : 'Your full name'} value={name} onChange={(e) => setName(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
+              <input type="text" aria-label={isHospital ? 'Hospital or blood bank name' : 'Full name'} required placeholder={isHospital ? 'Hospital name' : 'Your full name'} value={name} onChange={(e) => setName(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
             </div>
           </div>
 
@@ -169,7 +179,7 @@ export default function Register() {
             <label style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Phone</label>
             <div style={{ position: 'relative' }}>
               <Phone size={16} color={T.faint} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
-              <input type="tel" placeholder="+91 98765 43210" value={phone} onChange={(e) => setPhone(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
+              <input type="tel" aria-label="Phone" required autoComplete="tel" placeholder="+91 98765 43210" value={phone} onChange={(e) => setPhone(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
             </div>
           </div>
 
@@ -177,7 +187,7 @@ export default function Register() {
             <label style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Email</label>
             <div style={{ position: 'relative' }}>
               <Mail size={16} color={T.faint} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
-              <input type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
+              <input type="email" aria-label="Email" required autoComplete="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
             </div>
           </div>
 
@@ -185,7 +195,7 @@ export default function Register() {
             <label style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Password</label>
             <div style={{ position: 'relative' }}>
               <Lock size={16} color={T.faint} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
-              <input type="password" placeholder="Min 8 characters with uppercase, lowercase, number, symbol" value={password} onChange={(e) => setPassword(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
+              <input type="password" aria-label="Password" required autoComplete="new-password" placeholder="Min 8 characters with uppercase, lowercase, number, symbol" value={password} onChange={(e) => setPassword(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
             </div>
           </div>
 
@@ -193,7 +203,7 @@ export default function Register() {
             <label style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Date of birth</label>
             <div style={{ position: 'relative' }}>
               <Calendar size={16} color={T.faint} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
-              <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
+              <input type="date" aria-label="Date of birth" required value={dob} onChange={(e) => setDob(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
             </div>
           </div>
 
@@ -227,12 +237,12 @@ export default function Register() {
               <label style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>City</label>
               <div style={{ position: 'relative' }}>
                 <MapPin size={16} color={T.faint} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
-                <input type="text" placeholder="City" value={city} onChange={(e) => setCity(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
+                <input type="text" aria-label="City" required autoComplete="address-level2" placeholder="City" value={city} onChange={(e) => setCity(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
               </div>
             </div>
             <div style={{ flex: 1 }}>
               <label style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>State</label>
-              <input type="text" placeholder="State" value={state} onChange={(e) => setState(e.target.value)} style={inputStyle} />
+              <input type="text" aria-label="State" required autoComplete="address-level1" placeholder="State" value={state} onChange={(e) => setState(e.target.value)} style={inputStyle} />
             </div>
           </div>
 
@@ -245,8 +255,10 @@ export default function Register() {
               style={{ marginTop: 3, accentColor: T.oxblood, width: 18, height: 18, flexShrink: 0 }}
             />
             <label htmlFor="consent" style={{ fontFamily: body, fontSize: 13, color: T.ink, lineHeight: 1.4 }}>
-              I consent to the processing of my personal and health data for blood donation matching purposes.
-              I have read and agree to the <Link to="/privacy" style={{ color: T.oxblood }}>Privacy Policy</Link>.
+              I have read the <Link to="/privacy" style={{ color: T.oxblood }}>Privacy Policy</Link> and
+              agree to the <Link to="/terms" style={{ color: T.oxblood }}>Terms of Service</Link>. I consent
+              to RaktaSetu using my account, blood group, location, and donation activity to provide
+              matching and coordination features.
             </label>
           </div>
 

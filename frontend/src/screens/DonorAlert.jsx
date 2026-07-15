@@ -66,7 +66,7 @@ export default function DonorAlert() {
   if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: body }}>Loading...</div>;
   if (!request) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: body, color: T.mut }}>Request not found</div>;
 
-  const myGroup = user?.blood_group || '—';
+  const myGroup = user?.blood_group || 'Not set';
   const compatible = (GIVERS[request.blood_group] || []).includes(myGroup);
 
   return (
@@ -114,12 +114,12 @@ export default function DonorAlert() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16 }}>
         <Btn kind="critical" full onClick={handleAccept} disabled={responding || !compatible}>
-          <Droplet size={16} /> Accept — I can donate
+          <Droplet size={16} /> Accept, I can donate
         </Btn>
         <Btn kind="ghost" full onClick={handleDecline} disabled={responding}>Can't donate right now</Btn>
       </div>
       <p style={{ fontFamily: body, fontSize: 11.5, color: T.faint, textAlign: 'center', marginTop: 12 }}>
-        Declining never affects your credits. {request.donors_pinged || '—'} compatible donors were pinged.
+        Declining never affects your credits. {request.donors_pinged ?? 'No count available'} compatible donors were pinged.
       </p>
       {error && <p style={{ fontFamily: body, fontSize: 12, color: T.arterial, textAlign: 'center', marginTop: 8 }}>{error}</p>}
       <BottomNav />

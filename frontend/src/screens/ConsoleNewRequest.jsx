@@ -96,7 +96,7 @@ export default function ConsoleNewRequest() {
       </div>
       {rare && (
         <p style={{ fontFamily: body, fontSize: 12, color: '#D9B45C', margin: '8px 0 0', display: 'flex', gap: 6, alignItems: 'center' }}>
-          <AlertTriangle size={13} /> Rare group — radius auto-widens to 25 km, marked priority.
+          <AlertTriangle size={13} /> Rare group: radius expands to 25 km and receives priority.
         </p>
       )}
 

@@ -1,13 +1,15 @@
-@import url('https://fonts.googleapis.com/css2?family=Anek+Latin:wght@400;500;600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap');
-
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 html, body, #root {
-  height: 100%;
+  min-height: 100%;
   font-family: 'Public Sans', 'Segoe UI', system-ui, sans-serif;
   background: #F5F3F0;
   color: #17151A;
@@ -35,11 +37,8 @@ html, body, #root {
   .rs-pulse { animation: none; display: none; }
 }
 
-/* Scrollbar hide */
-::-webkit-scrollbar { width: 0px; }
-
 /* Focus styles */
-button:focus-visible, a:focus-visible, input:focus-visible {
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible {
   outline: 2px solid #C8102E;
   outline-offset: 2px;
 }

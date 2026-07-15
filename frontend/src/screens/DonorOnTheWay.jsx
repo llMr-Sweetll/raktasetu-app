@@ -70,14 +70,14 @@ export default function DonorOnTheWay() {
       <Card style={{ background: T.leafSoft, borderColor: '#CBE3D8', display: 'flex', gap: 10, alignItems: 'center' }}>
         <CheckCircle2 size={22} color={T.leaf} />
         <div>
-          <p style={{ fontFamily: display, fontWeight: 800, fontSize: 15, margin: 0, color: T.leaf }}>You're confirmed — donor</p>
+          <p style={{ fontFamily: display, fontWeight: 800, fontSize: 15, margin: 0, color: T.leaf }}>You are confirmed as a donor</p>
           <p style={{ fontFamily: body, fontSize: 12.5, color: '#3E6B58', margin: '2px 0 0' }}>The blood bank has been notified you're coming.</p>
         </div>
       </Card>
 
       <Card style={{ marginTop: 12 }}>
         <p style={{ fontFamily: display, fontWeight: 800, fontSize: 16, margin: 0, color: T.ink }}>{request?.hospital_name || 'Hospital'}</p>
-        <p style={{ fontFamily: body, fontSize: 12.5, color: T.mut, margin: '3px 0 12px' }}>{request?.address || ''} · ref {request?.ref_code || '—'}</p>
+        <p style={{ fontFamily: body, fontSize: 12.5, color: T.mut, margin: '3px 0 12px' }}>{request?.address || ''} · ref {request?.ref_code || 'Not available'}</p>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Btn kind="primary" small onClick={openDirections}><Navigation size={14} /> Directions</Btn>
           <Btn kind="ghost" small onClick={callHospital}><Phone size={14} /> Call blood bank</Btn>

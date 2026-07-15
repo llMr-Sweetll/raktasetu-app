@@ -61,7 +61,7 @@ export default function ConsoleVerify() {
       <p style={{ fontFamily: display, fontWeight: 800, fontSize: 18, color: '#F0EEE9', margin: '0 0 4px' }}>Verify donor</p>
       <p style={{ fontFamily: body, fontSize: 12, color: T.consoleMut, margin: '0 0 14px' }}>Scan QR code or enter reference code to verify donation</p>
 
-      {/* QR Scanner placeholder — html5-qrcode would be initialized here in production */}
+      {/* QR scanner placeholder for html5-qrcode initialization. */}
       <Card dark style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center', padding: 20 }}>
         <div ref={scannerContainerRef} style={{ width: '100%', maxWidth: 280, aspectRatio: '1', borderRadius: 12, border: `1.5px dashed ${T.consoleLine}`, display: 'flex', alignItems: 'center', justifyContent: 'center', background: T.consoleCard }}>
           <QrCode size={48} color="#F0EEE9" />
@@ -116,7 +116,7 @@ export default function ConsoleVerify() {
       )}
 
       <p style={{ fontFamily: body, fontSize: 11.5, color: T.consoleMut, marginTop: 12, lineHeight: 1.5 }}>
-        Confirmation closes the loop: donor credits are issued only after bank staff verify the collected unit — the digital version of stamping a donor card.
+        Confirmation closes the loop. Donor credits are issued only after bank staff verify the collected unit, like stamping a donor card.
       </p>
     </div>
   );

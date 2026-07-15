@@ -5,8 +5,9 @@ import { T } from '../theme.js';
 import Btn from '../components/Btn.jsx';
 import { useAuth } from '../hooks/useAuth.js';
 import { GOOGLE_CLIENT_ID } from '../config.js';
-import BloodBridgeScene from '../components/BloodBridgeScene.jsx';
+import LazyBloodBridge from '../components/LazyBloodBridge.jsx';
 import { roleHome, parseAuthRole } from '../lib/roleHome.js';
+import usePageMeta from '../hooks/usePageMeta.js';
 
 const body = "'Public Sans', 'Segoe UI', system-ui, sans-serif";
 const display = "'Anek Latin', 'Segoe UI', system-ui, sans-serif";
@@ -40,13 +41,25 @@ export default function Login() {
   const consentRef = useRef(false);
   const loginGoogleRef = useRef(loginWithGoogle);
   const navigateRef = useRef(navigate);
+
+  usePageMeta({
+    title: isHospital ? 'Hospital Sign In | RaktaSetu' : 'Donor Sign In | RaktaSetu',
+    description: isHospital
+      ? 'Sign in to the RaktaSetu hospital console.'
+      : 'Sign in to review compatible blood requests near you.',
+    path: '/login',
+  });
   consentRef.current = googleConsent;
   loginGoogleRef.current = loginWithGoogle;
   navigateRef.current = navigate;
 
   // Google only on donor login
   useEffect(() => {
-    if (isHospital || !GOOGLE_CLIENT_ID) return;
+    if (isHospital) {
+      document.getElementById('gis-script')?.remove();
+      return;
+    }
+    if (!GOOGLE_CLIENT_ID) return;
     let cancelled = false;
     loadGisScript()
       .then(() => {
@@ -95,7 +108,7 @@ export default function Login() {
     setLoading(true);
     try {
       const user = await login(phone, password);
-      // Destination from actual role only — ignore ?next / open redirects
+      // Destination comes from the actual role. Ignore query redirects.
       navigate(roleHome(user));
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed. Please try again.');
@@ -117,7 +130,7 @@ export default function Login() {
       }}
     >
       <div style={{ position: 'absolute', inset: 0, opacity: 0.55 }}>
-        <BloodBridgeScene />
+        <LazyBloodBridge />
       </div>
       <div style={{
         position: 'absolute', inset: 0,
@@ -190,9 +203,9 @@ export default function Login() {
               <Droplet size={28} color="#fff" fill="#fff" strokeWidth={1.5} style={{ transform: 'rotate(-45deg)' }} />
             </div>
           </div>
-          <p style={{ fontFamily: display, fontWeight: 800, fontSize: 22, textAlign: 'center', color: '#F2E8E6', margin: '0 0 4px' }}>
+          <h1 style={{ fontFamily: display, fontWeight: 800, fontSize: 22, textAlign: 'center', color: '#F2E8E6', margin: '0 0 4px' }}>
             {isHospital ? 'Hospital sign in' : 'Donor sign in'}
-          </p>
+          </h1>
           <p style={{ fontFamily: body, fontSize: 13, color: '#A89B96', textAlign: 'center', margin: '0 0 22px' }}>
             {isHospital
               ? 'Access your hospital console'
@@ -205,7 +218,7 @@ export default function Login() {
                 background: 'rgba(200,16,46,0.15)', border: '1px solid rgba(200,16,46,0.4)',
                 borderRadius: 10, padding: '10px 14px', marginBottom: 14,
                 fontFamily: body, fontSize: 13, color: '#F3C9D0',
-              }}>
+              }} role="alert">
                 {error}
               </div>
             )}
@@ -214,6 +227,8 @@ export default function Login() {
               <input
                 type="text" placeholder="Phone or email" value={phone} onChange={(e) => setPhone(e.target.value)}
                 autoComplete="username"
+                aria-label="Phone or email"
+                required
                 style={{
                   width: '100%', padding: '14px 14px 14px 40px', borderRadius: 12, minHeight: 48,
                   border: '1px solid rgba(242,232,230,0.18)', fontFamily: body, fontSize: 16,
@@ -226,6 +241,8 @@ export default function Login() {
               <input
                 type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
+                aria-label="Password"
+                required
                 style={{
                   width: '100%', padding: '14px 14px 14px 40px', borderRadius: 12, minHeight: 48,
                   border: '1px solid rgba(242,232,230,0.18)', fontFamily: body, fontSize: 16,
@@ -255,8 +272,9 @@ export default function Login() {
                   style={{ marginTop: 4, width: 18, height: 18, flexShrink: 0 }}
                 />
                 <span>
-                  I consent to RaktaSetu processing my account data per the{' '}
-                  <Link to="/privacy" style={{ color: '#F2E8E6' }}>Privacy Policy</Link>.
+                  I have read the <Link to="/privacy" style={{ color: '#F2E8E6' }}>Privacy Policy</Link> and
+                  consent to RaktaSetu using my Google name and email to create or access a donor account.
+                  Google Identity Services loads on this page.
                 </span>
               </label>
               <div
