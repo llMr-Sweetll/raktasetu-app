@@ -33,7 +33,7 @@ export default function DonorHome() {
       setDashboard(payload);
       setOnCall(payload.is_on_call);
       updateUser({ is_on_call: payload.is_on_call });
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to load dashboard');
     } finally {
       setLoading(false);
@@ -47,7 +47,7 @@ export default function DonorHome() {
       const payload = response.data || response;
       setOnCall(payload.is_on_call);
       updateUser({ is_on_call: payload.is_on_call });
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to update status');
     } finally {
       setToggleLoading(false);

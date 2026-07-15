@@ -5,6 +5,8 @@ import { T } from '../theme.js';
 import Card from '../components/Card.jsx';
 import BottomNav from '../components/BottomNav.jsx';
 import api from '../api/client.js';
+import { CircleMarker, MapContainer, Popup, TileLayer } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 
 const body = "'Public Sans', 'Segoe UI', system-ui, sans-serif";
 const display = "'Anek Latin', 'Segoe UI', system-ui, sans-serif";
@@ -15,6 +17,7 @@ export default function DonorRequests() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [view, setView] = useState('list');
+  const mappedRequests = requests.filter((request) => Number.isFinite(Number(request.latitude)) && Number.isFinite(Number(request.longitude)));
 
   useEffect(() => {
     fetchRequests();
@@ -25,7 +28,7 @@ export default function DonorRequests() {
       const { data: response } = await api.get('/donor/requests');
       const payload = response.data || response;
       setRequests(payload.requests || []);
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to load requests');
     } finally {
       setLoading(false);
@@ -60,9 +63,50 @@ export default function DonorRequests() {
         <Card>
           <p style={{ fontFamily: body, fontSize: 13, color: T.mut, margin: 0, textAlign: 'center' }}>No active requests near you. Turn on your on-call toggle to get notified!</p>
         </Card>
+      ) : view === 'map' ? (
+        mappedRequests.length ? (
+          <div role="region" aria-label="Map of nearby blood requests" style={{ height: 'min(62vh, 520px)', minHeight: 360, borderRadius: 18, overflow: 'hidden', border: `1px solid ${T.line}` }}>
+            <MapContainer
+              center={[Number(mappedRequests[0].latitude), Number(mappedRequests[0].longitude)]}
+              zoom={12}
+              scrollWheelZoom
+              style={{ height: '100%', width: '100%' }}
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              {mappedRequests.map((request) => (
+                <CircleMarker
+                  key={request.id}
+                  center={[Number(request.latitude), Number(request.longitude)]}
+                  radius={request.urgency === 'critical' ? 12 : 9}
+                  pathOptions={{ color: '#fff', weight: 2, fillColor: request.urgency === 'critical' ? T.arterial : T.oxblood, fillOpacity: 0.95 }}
+                >
+                  <Popup>
+                    <strong>{request.blood_group} · {request.hospital_name}</strong><br />
+                    {request.units_needed} units · {request.distance_km?.toFixed(1)} km<br />
+                    <button type="button" onClick={() => navigate(`/alert/${request.id}`)}>Review request</button>
+                  </Popup>
+                </CircleMarker>
+              ))}
+            </MapContainer>
+          </div>
+        ) : (
+          <Card><p style={{ margin: 0, color: T.mut }}>These requests do not include mappable coordinates. Use the list view for details.</p></Card>
+        )
       ) : (
         requests.map((req) => (
-          <Card key={req.id} style={{ marginBottom: 10, cursor: 'pointer' }} onClick={() => navigate(`/alert/${req.id}`)}>
+          <Card
+            key={req.id}
+            style={{ marginBottom: 10, cursor: 'pointer' }}
+            onClick={() => navigate(`/alert/${req.id}`)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') navigate(`/alert/${req.id}`);
+            }}
+            role="link"
+            tabIndex={0}
+          >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>

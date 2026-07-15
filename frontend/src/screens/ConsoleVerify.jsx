@@ -6,6 +6,7 @@ import Card from '../components/Card.jsx';
 import Btn from '../components/Btn.jsx';
 import Chip from '../components/Chip.jsx';
 import api from '../api/client.js';
+import { Html5Qrcode } from 'html5-qrcode';
 
 const body = "'Public Sans', 'Segoe UI', system-ui, sans-serif";
 const display = "'Anek Latin', 'Segoe UI', system-ui, sans-serif";
@@ -17,20 +18,22 @@ export default function ConsoleVerify() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const scannerRef = useRef(null);
-  const scannerContainerRef = useRef(null);
 
-  const searchDonor = async () => {
-    if (!refCode.trim()) return;
+  const searchDonor = async (candidate = refCode) => {
+    const code = String(candidate).trim();
+    if (!code) return;
+    setRefCode(code);
     setLoading(true);
     setError('');
     try {
-      const { data: response } = await api.get(`/hospital/requests?ref=${refCode.trim()}`);
+      const { data: response } = await api.get('/hospital/requests', { params: { ref: code } });
       const payload = response.data || response;
       if (payload.donor) setDonor(payload.donor);
       else setError('Donor not found');
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to find donor');
+    } catch (_err) {
+      setError(_err.response?.data?.error?.message || _err.response?.data?.error || 'Failed to find donor');
     } finally {
       setLoading(false);
     }
@@ -43,14 +46,45 @@ export default function ConsoleVerify() {
       await api.post('/hospital/verify-donation', {
         donor_id: donor.id,
         request_id: donor.request_id,
+        units: 1,
       });
       setDone(true);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to verify donation');
+    } catch (_err) {
+      setError(_err.response?.data?.error?.message || _err.response?.data?.error || 'Failed to verify donation');
     } finally {
       setLoading(false);
     }
   };
+
+  const startScanner = async () => {
+    setError('');
+    try {
+      const scanner = new Html5Qrcode('raktasetu-qr-reader');
+      scannerRef.current = scanner;
+      setScanning(true);
+      await scanner.start(
+        { facingMode: 'environment' },
+        { fps: 8, qrbox: { width: 220, height: 220 } },
+        async (decodedText) => {
+          await scanner.stop();
+          setScanning(false);
+          await searchDonor(decodedText);
+        },
+        () => {},
+      );
+    } catch (scannerError) {
+      setScanning(false);
+      setError(scannerError.message || 'Camera could not start. Use the reference code below.');
+    }
+  };
+
+  useEffect(() => () => {
+    const scanner = scannerRef.current;
+    if (!scanner) return;
+    Promise.resolve(scanner.isScanning ? scanner.stop() : undefined)
+      .then(() => scanner.clear())
+      .catch(() => {});
+  }, []);
 
   return (
     <div style={{ minHeight: '100vh', background: T.consoleBg, padding: '14px 16px 20px', maxWidth: 430, margin: '0 auto' }}>
@@ -61,11 +95,11 @@ export default function ConsoleVerify() {
       <p style={{ fontFamily: display, fontWeight: 800, fontSize: 18, color: '#F0EEE9', margin: '0 0 4px' }}>Verify donor</p>
       <p style={{ fontFamily: body, fontSize: 12, color: T.consoleMut, margin: '0 0 14px' }}>Scan QR code or enter reference code to verify donation</p>
 
-      {/* QR scanner placeholder for html5-qrcode initialization. */}
       <Card dark style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center', padding: 20 }}>
-        <div ref={scannerContainerRef} style={{ width: '100%', maxWidth: 280, aspectRatio: '1', borderRadius: 12, border: `1.5px dashed ${T.consoleLine}`, display: 'flex', alignItems: 'center', justifyContent: 'center', background: T.consoleCard }}>
-          <QrCode size={48} color="#F0EEE9" />
+        <div id="raktasetu-qr-reader" style={{ width: '100%', maxWidth: 280, minHeight: 260, borderRadius: 12, overflow: 'hidden', border: `1.5px solid ${T.consoleLine}`, display: 'grid', placeItems: 'center', background: T.consoleCard }}>
+          {!scanning ? <QrCode size={48} color="#F0EEE9" aria-hidden="true" /> : null}
         </div>
+        {!scanning ? <Btn kind="ghost" dark onClick={startScanner}>Start camera scanner</Btn> : null}
         <p style={{ fontFamily: body, fontSize: 12, color: T.consoleMut, margin: 0, textAlign: 'center' }}>
           Camera access required for QR scanning. Use manual entry below as fallback.
         </p>
@@ -98,7 +132,7 @@ export default function ConsoleVerify() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <p style={{ fontFamily: display, fontWeight: 800, fontSize: 16, margin: 0, color: '#F0EEE9' }}>{donor.name} · {donor.blood_group}</p>
-              <p style={{ fontFamily: body, fontSize: 12, color: T.consoleMut, margin: '3px 0 0' }}>Ref {donor.ref_code} · accepted {new Date(donor.responded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · Aadhaar verified</p>
+              <p style={{ fontFamily: body, fontSize: 12, color: T.consoleMut, margin: '3px 0 0' }}>Ref {donor.ref_code} · arrived {new Date(donor.responded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
             </div>
             <Chip tone="green" dark>Arrived</Chip>
           </div>

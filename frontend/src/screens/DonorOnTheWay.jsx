@@ -15,7 +15,7 @@ export default function DonorOnTheWay() {
   const navigate = useNavigate();
   const [request, setRequest] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [qrData, setQrData] = useState('');
+  const [_qrData, setQrData] = useState('');
   const [arrived, setArrived] = useState(false);
   const [arriving, setArriving] = useState(false);
 
@@ -52,8 +52,8 @@ export default function DonorOnTheWay() {
       setArriving(true);
       await api.post(`/donor/arrived/${requestId}`);
       setArrived(true);
-    } catch (err) {
-      alert(err.response?.data?.error || 'Failed to mark arrival');
+    } catch (_err) {
+      alert(_err.response?.data?.error || 'Failed to mark arrival');
     } finally {
       setArriving(false);
     }

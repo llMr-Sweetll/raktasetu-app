@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Minus, Radio, AlertTriangle, Users, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { T, GIVERS, RARE, GROUPS } from '../theme.js';
-import Card from '../components/Card.jsx';
 import Btn from '../components/Btn.jsx';
 import api from '../api/client.js';
 
@@ -26,7 +25,7 @@ export default function ConsoleNewRequest() {
   useEffect(() => {
     const donorsInReach = (g, km) => {
       const factor = km === 3 ? 0.35 : km === 5 ? 0.6 : 1;
-      const total = (GIVERS[g] || []).reduce((s, gg) => s + 50, 0); // approximate
+      const total = (GIVERS[g] || []).reduce((s, _gg) => s + 50, 0); // approximate
       return Math.max(1, Math.round(total * factor));
     };
     setReach(donorsInReach(group, effectiveRadius));
@@ -43,8 +42,8 @@ export default function ConsoleNewRequest() {
         radius_km: effectiveRadius,
       });
       setSent(true);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to broadcast request');
+    } catch (_err) {
+      setError(_err.response?.data?.error || 'Failed to broadcast request');
     } finally {
       setLoading(false);
     }

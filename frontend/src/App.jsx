@@ -13,6 +13,9 @@ import PrivacyPolicy from './screens/PrivacyPolicy.jsx';
 import TermsOfService from './screens/TermsOfService.jsx';
 import DataRights from './screens/DataRights.jsx';
 import SecurityReadiness from './screens/SecurityReadiness.jsx';
+import GoogleOnboarding from './screens/GoogleOnboarding.jsx';
+import AccountLink from './screens/AccountLink.jsx';
+import HospitalPending from './screens/HospitalPending.jsx';
 
 /* Donor */
 import DonorHome from './screens/DonorHome.jsx';
@@ -39,14 +42,15 @@ const PUBLIC_PATHS = new Set([
   '/terms',
   '/data-rights',
   '/security-readiness',
+  '/google-onboarding',
+  '/account-link',
+  '/hospital-pending',
 ]);
 
 function App() {
   const { user, loading } = useAuth();
   const location = useLocation();
-  const isAdmin = location.pathname.startsWith('/admin');
   const isPublic = PUBLIC_PATHS.has(location.pathname);
-  const isPublicSite = isPublic;
   const isDarkPublic = location.pathname === '/' || location.pathname === '/login';
 
   // Only block protected routes while the session is resolving.
@@ -69,12 +73,7 @@ function App() {
       minHeight: '100vh',
       color: T.ink,
     }}>
-      <div style={{
-        maxWidth: isAdmin || isPublicSite ? '100%' : 430,
-        margin: '0 auto',
-        minHeight: '100vh',
-        position: 'relative',
-      }}>
+      <div className={location.pathname.startsWith('/admin') || location.pathname.startsWith('/console') ? 'app-shell app-shell--wide' : (isPublic ? 'app-shell app-shell--fluid' : 'app-shell')}>
         <Routes>
           {/* Public routes */}
           <Route path="/" element={user ? <Navigate to={roleHome(user)} replace /> : <Landing />} />
@@ -84,6 +83,9 @@ function App() {
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="/data-rights" element={<DataRights />} />
           <Route path="/security-readiness" element={<SecurityReadiness />} />
+          <Route path="/google-onboarding" element={user ? <Navigate to={roleHome(user)} replace /> : <GoogleOnboarding />} />
+          <Route path="/account-link" element={user ? <Navigate to={roleHome(user)} replace /> : <AccountLink />} />
+          <Route path="/hospital-pending" element={<HospitalPending />} />
 
           {/* Donor routes */}
           <Route path="/home" element={

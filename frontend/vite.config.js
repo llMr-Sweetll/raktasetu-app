@@ -7,6 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      minify: false,
       includeAssets: ['drop-icon.svg', 'push-handler.js'],
       manifest: {
         name: 'RaktaSetu',
@@ -55,6 +56,21 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: false
-  }
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          three: ['three'],
+          leaflet: ['leaflet', 'react-leaflet'],
+          vendor: ['react', 'react-dom', 'react-router-dom', 'axios'],
+        },
+      },
+    },
+  },
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.js'],
+    css: true,
+    exclude: ['**/node_modules/**', '**/e2e/**', '**/dist/**'],
+  },
 })

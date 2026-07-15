@@ -24,7 +24,7 @@ export default function DonorCredits() {
       const payload = response.data || response;
       setBalance(payload.balance || 0);
       setLedger(payload.history || []);
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to load credits');
     } finally {
       setLoading(false);

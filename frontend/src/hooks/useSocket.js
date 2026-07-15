@@ -7,7 +7,7 @@ export function useSocket(onEvent) {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (!token) return;
+    if (!token) return undefined;
 
     const socket = io(SOCKET_URL, {
       auth: { token },
@@ -15,16 +15,21 @@ export function useSocket(onEvent) {
     });
     socketRef.current = socket;
 
-    socket.on('connect', () => console.log('Socket connected'));
-    socket.on('disconnect', () => console.log('Socket disconnected'));
+    const handlers = onEvent || {};
+    Object.entries(handlers).forEach(([evt, handler]) => {
+      socket.on(evt, handler);
+    });
 
-    if (onEvent) {
-      Object.entries(onEvent).forEach(([evt, handler]) => {
-        socket.on(evt, handler);
-      });
-    }
+    const onStorage = (event) => {
+      if (event.key === 'token' && !event.newValue) {
+        socket.disconnect();
+      }
+    };
+    window.addEventListener('storage', onStorage);
 
     return () => {
+      window.removeEventListener('storage', onStorage);
+      Object.keys(handlers).forEach((evt) => socket.off(evt));
       socket.disconnect();
       socketRef.current = null;
     };

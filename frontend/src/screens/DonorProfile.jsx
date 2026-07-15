@@ -18,12 +18,14 @@ const display = "'Anek Latin', 'Segoe UI', system-ui, sans-serif";
 
 export default function DonorProfile() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const [history, setHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [radius, setRadius] = useState(user?.ping_radius_km || 10);
   const [notifMsg, setNotifMsg] = useState('');
   const [notifBusy, setNotifBusy] = useState(false);
+  const [dateOfBirth, setDateOfBirth] = useState(user?.date_of_birth?.slice?.(0, 10) || '');
+  const [profileMsg, setProfileMsg] = useState('');
 
   useEffect(() => {
     fetchHistory();
@@ -75,13 +77,34 @@ export default function DonorProfile() {
         <ShieldCheck size={17} color={verified ? T.leaf : T.faint} />
         <div>
           <p style={{ fontFamily: display, fontWeight: 700, fontSize: 13.5, margin: 0, color: T.ink }}>
-            {verified ? 'Verified via Aadhaar OTP' : 'Verification pending'}
+            {verified ? 'Contact verified' : 'Contact verification pending'}
           </p>
           <p style={{ fontFamily: body, fontSize: 12, color: T.faint, margin: '2px 0 0' }}>
-            {verified ? 'Identity confirmed' : 'Complete Aadhaar verification to get full access'}
+            {verified ? 'Verified contact is on file' : 'This MVP does not yet offer automated phone verification'}
           </p>
         </div>
       </Card>
+
+      {!user?.date_of_birth ? (
+        <Card style={{ marginTop: 10, padding: 13 }}>
+          <p style={{ fontFamily: display, fontWeight: 700, fontSize: 13.5, margin: '0 0 4px', color: T.ink }}>Complete age eligibility</p>
+          <p style={{ fontFamily: body, fontSize: 12, color: T.faint, margin: '0 0 10px' }}>Date of birth is required before you can go on call.</p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input aria-label="Date of birth" type="date" value={dateOfBirth} onChange={(event) => setDateOfBirth(event.target.value)} style={{ flex: 1, minHeight: 42, borderRadius: 10, border: `1px solid ${T.line}`, padding: '0 10px' }} />
+            <button type="button" onClick={async () => {
+              setProfileMsg('');
+              try {
+                const { data: response } = await api.patch('/donor/profile', { date_of_birth: dateOfBirth });
+                updateUser(response.data?.user || {});
+                setProfileMsg('Date of birth saved.');
+              } catch (requestError) {
+                setProfileMsg(requestError.response?.data?.error?.message || 'Could not save date of birth.');
+              }
+            }}>Save</button>
+          </div>
+          {profileMsg ? <p role="status" style={{ fontFamily: body, fontSize: 12, color: T.mut }}>{profileMsg}</p> : null}
+        </Card>
+      ) : null}
 
       <Card style={{ marginTop: 10, padding: 13, display: 'flex', gap: 12, alignItems: 'center' }}>
         <Clock size={17} color={T.mut} />

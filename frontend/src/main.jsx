@@ -27,7 +27,7 @@ try {
       </HashRouter>
     </React.StrictMode>,
   )
-} catch (err) {
+} catch (_err) {
   console.error('[RaktaSetu] The application could not start.')
   const root = document.getElementById('root')
   if (root) {

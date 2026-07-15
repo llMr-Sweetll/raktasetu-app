@@ -23,6 +23,12 @@ jobs:
       - name: Install Railway CLI
         run: npm install -g @railway/cli
 
+      - name: Apply database migrations
+        run: npm ci --prefix backend && npm --prefix backend run db:migrate
+        env:
+          NODE_ENV: production
+          MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+
       - name: Deploy to Railway
         run: railway up --detach
         env:

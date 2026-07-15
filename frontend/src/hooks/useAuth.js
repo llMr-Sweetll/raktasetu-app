@@ -36,50 +36,93 @@ function useAuthState() {
 
   useEffect(() => { fetchUser(); }, [fetchUser]);
 
+  const storeSession = (payload) => {
+    if (!payload?.token) return null;
+    localStorage.setItem('token', payload.token);
+    if (payload.refresh_token) localStorage.setItem('refresh_token', payload.refresh_token);
+    const nextUser = payload.user;
+    setUser(nextUser);
+    return nextUser;
+  };
+
   const login = async (identifier, password) => {
     const payload = identifier.includes('@')
       ? { email: identifier, password }
       : { phone: identifier, password };
     const { data } = await api.post('/auth/login', payload);
-    const token = data.data?.token || data.token;
-    const nextUser = data.data?.user || data.user;
-    localStorage.setItem('token', token);
-    setUser(nextUser);
-    return nextUser;
+    return storeSession(data.data || data);
   };
 
-  const loginWithGoogle = async (idToken, consentGiven = false) => {
-    const { data } = await api.post('/auth/google', {
-      id_token: idToken,
-      consent_given: consentGiven,
-      consent_policy_version: '2026-07-15',
-    });
-    const token = data.data?.token || data.token;
-    const nextUser = data.data?.user || data.user;
-    localStorage.setItem('token', token);
-    setUser(nextUser);
-    return nextUser;
+  const loginWithGoogle = async (idToken) => {
+    try {
+      const { data } = await api.post('/auth/google', { id_token: idToken });
+      const payload = data.data || data;
+      if (payload.flow === 'session') {
+        return { flow: 'session', user: storeSession(payload) };
+      }
+      if (payload.flow === 'onboarding_required') {
+        sessionStorage.setItem('google_onboarding_token', payload.onboarding_token);
+      }
+      return payload;
+    } catch (error) {
+      const code = error.response?.data?.error?.code;
+      if (code === 'ACCOUNT_LINK_REQUIRED') {
+        sessionStorage.setItem('google_link_token', idToken);
+        return { flow: 'link_required' };
+      }
+      throw error;
+    }
   };
 
   const register = async (payload) => {
     const { data } = await api.post('/auth/register', payload);
-    const token = data.data?.token || data.token;
-    const nextUser = data.data?.user || data.user;
-    localStorage.setItem('token', token);
-    setUser(nextUser);
-    return nextUser;
+    const result = data.data || data;
+    return result.token ? { user: storeSession(result) } : result;
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    setUser(null);
+  const completeGoogleOnboarding = async (payload) => {
+    const { data } = await api.post('/auth/google/onboarding', payload);
+    return storeSession(data.data || data);
+  };
+
+  const linkGoogle = async ({ identifier, password }) => {
+    const idToken = sessionStorage.getItem('google_link_token');
+    if (!idToken) throw new Error('Google linking session expired');
+    const donor = await login(identifier, password);
+    await api.post('/auth/google/link', { id_token: idToken, password });
+    sessionStorage.removeItem('google_link_token');
+    return donor;
+  };
+
+  const logout = async () => {
+    const refreshToken = localStorage.getItem('refresh_token');
+    try {
+      if (localStorage.getItem('token')) {
+        await api.post('/auth/logout', refreshToken ? { refresh_token: refreshToken } : {});
+      }
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('refresh_token');
+      setUser(null);
+    }
   };
 
   const updateUser = (patch) => {
     setUser((u) => (u ? { ...u, ...patch } : u));
   };
 
-  return { user, loading, login, loginWithGoogle, register, logout, updateUser, refetch: fetchUser };
+  return {
+    user,
+    loading,
+    login,
+    loginWithGoogle,
+    completeGoogleOnboarding,
+    linkGoogle,
+    register,
+    logout,
+    updateUser,
+    refetch: fetchUser,
+  };
 }
 
 export function AuthProvider({ children }) {

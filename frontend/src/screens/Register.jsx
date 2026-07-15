@@ -24,6 +24,8 @@ export default function Register() {
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
   const [dob, setDob] = useState('');
+  const [address, setAddress] = useState('');
+  const [licenseNumber, setLicenseNumber] = useState('');
   const [consentGiven, setConsentGiven] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -39,22 +41,28 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!name || !phone || !email || !password || !city || !state || !dob) {
+    if (!name || !phone || !email || !password || !city || !state || (!isHospital && !dob)) {
       setError('Please fill all required fields');
+      return;
+    }
+    if (isHospital && (!address || !licenseNumber)) {
+      setError('Hospital address and license number are required');
       return;
     }
     if (role === 'donor' && !bloodGroup) {
       setError('Please select your blood group');
       return;
     }
-    const today = new Date();
-    const birthDate = new Date(dob);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const m = today.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
-    if (age < 18) {
-      setError('You must be at least 18 years old to register');
-      return;
+    if (!isHospital) {
+      const today = new Date();
+      const birthDate = new Date(dob);
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const m = today.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+      if (age < 18) {
+        setError('You must be at least 18 years old to register');
+        return;
+      }
     }
     if (!consentGiven) {
       setError('You must consent to processing your personal and health data');
@@ -64,13 +72,19 @@ export default function Register() {
     try {
       const payload = {
         name, phone, email, password, role, city, state,
-        blood_group: bloodGroup, dob, consent_given: true,
+        blood_group: isHospital ? undefined : bloodGroup,
+        date_of_birth: isHospital ? undefined : dob,
+        hospital_name: isHospital ? name : undefined,
+        address: isHospital ? address : undefined,
+        license_number: isHospital ? licenseNumber : undefined,
+        consent_given: true,
         consent_policy_version: '2026-07-15',
       };
-      const user = await register(payload);
-      navigate(roleHome(user));
-    } catch (err) {
-      setError(err.response?.data?.error || 'Registration failed. Please try again.');
+      const result = await register(payload);
+      if (result.status === 'pending_approval') navigate('/hospital-pending');
+      else navigate(roleHome(result.user));
+    } catch (_err) {
+      setError(_err.response?.data?.error?.message || _err.response?.data?.error || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -199,13 +213,26 @@ export default function Register() {
             </div>
           </div>
 
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Date of birth</label>
-            <div style={{ position: 'relative' }}>
-              <Calendar size={16} color={T.faint} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
-              <input type="date" aria-label="Date of birth" required value={dob} onChange={(e) => setDob(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
+          {!isHospital ? (
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Date of birth</label>
+              <div style={{ position: 'relative' }}>
+                <Calendar size={16} color={T.faint} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
+                <input type="date" aria-label="Date of birth" required value={dob} onChange={(e) => setDob(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
+              </div>
             </div>
-          </div>
+          ) : (
+            <>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>License number</label>
+                <input type="text" aria-label="License number" required value={licenseNumber} onChange={(e) => setLicenseNumber(e.target.value)} style={inputStyle} />
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Hospital address</label>
+                <textarea aria-label="Hospital address" required value={address} onChange={(e) => setAddress(e.target.value)} style={{ ...inputStyle, minHeight: 88, resize: 'vertical' }} />
+              </div>
+            </>
+          )}
 
           {!isHospital && (
             <div style={{ marginBottom: 12 }}>

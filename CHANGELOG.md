@@ -2,6 +2,36 @@
 
 All notable changes to RaktaSetu are documented in this file.
 
+## [2.0.0] — 2026-07-15
+
+### Security
+
+- Removed production demo seeding and public demo credentials from startup, login, and README
+- Hospital accounts stay pending until admin approval; operational routes require approved hospital state
+- Google Sign-In uses verified identity only; no email auto-link; privileged roles denied; donor onboarding/link flows required
+- Access tokens use issuer/audience/`jti`/token version; logout blacklists tokens, rotates refresh tokens, and disconnects sockets
+- Donation completion is a single locked transaction with replay rejection and server-derived blood group
+- Push subscriptions are owner-scoped; Socket.IO accepts auth-payload tokens only and no longer mutates state
+- Strict Zod validation, pagination bounds, RLS policies, least-privileged app role grants, retention job, and CI security gates
+
+### Added
+
+- Google onboarding, account-link, and hospital-pending screens
+- Admin hospital approval controls
+- Donor request map view (Leaflet) with accessible list fallback
+- Operational readiness and security-controls documentation
+
+### Changed
+
+- Royal maroon / black / white brand tokens across console, admin, and auth shells
+- Vite manual chunks for `three`, `leaflet`, and vendor to reduce main-route lag
+- Responsive `app-shell` widths for mobile, tablet, and desktop
+
+### Notes
+
+- Technical controls are not GDPR or HIPAA certification claims
+- Production demo passwords must be rotated out-of-band if still in use; fixture seeding refuses production
+
 ## [1.2.0] — 2026-07-15
 
 ### Added

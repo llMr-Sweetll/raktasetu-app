@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Radio, MapPin, Clock, Droplet, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Radio, MapPin, Clock, Droplet, ArrowRight } from 'lucide-react';
 import { T, GIVERS } from '../theme.js';
 import Chip from '../components/Chip.jsx';
 import Card from '../components/Card.jsx';
@@ -32,7 +32,7 @@ export default function DonorAlert() {
       const found = payload.requests?.find(r => r.id === requestId);
       if (found) setRequest(found);
       else setError('Request not found');
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to load request details');
     } finally {
       setLoading(false);
@@ -44,8 +44,8 @@ export default function DonorAlert() {
     try {
       await api.post(`/donor/respond/${requestId}`, { status: 'accepted' });
       navigate(`/on-the-way/${requestId}`);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to accept request');
+    } catch (_err) {
+      setError(_err.response?.data?.error || 'Failed to accept request');
     } finally {
       setResponding(false);
     }
@@ -56,8 +56,8 @@ export default function DonorAlert() {
     try {
       await api.post(`/donor/respond/${requestId}`, { status: 'declined' });
       navigate('/home');
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to decline request');
+    } catch (_err) {
+      setError(_err.response?.data?.error || 'Failed to decline request');
     } finally {
       setResponding(false);
     }
