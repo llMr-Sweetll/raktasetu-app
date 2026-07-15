@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Phone, Lock, Droplet } from 'lucide-react';
 import { T } from '../theme.js';
 import Btn from '../components/Btn.jsx';
 import { useAuth } from '../hooks/useAuth.js';
 import { GOOGLE_CLIENT_ID } from '../config.js';
 import BloodBridgeScene from '../components/BloodBridgeScene.jsx';
+import { roleHome, parseAuthRole } from '../lib/roleHome.js';
 
 const body = "'Public Sans', 'Segoe UI', system-ui, sans-serif";
 const display = "'Anek Latin', 'Segoe UI', system-ui, sans-serif";
@@ -25,6 +26,9 @@ function loadGisScript() {
 
 export default function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const authRole = parseAuthRole(searchParams);
+  const isHospital = authRole === 'hospital';
   const { login, loginWithGoogle } = useAuth();
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -40,8 +44,9 @@ export default function Login() {
   loginGoogleRef.current = loginWithGoogle;
   navigateRef.current = navigate;
 
+  // Google only on donor login
   useEffect(() => {
-    if (!GOOGLE_CLIENT_ID) return;
+    if (isHospital || !GOOGLE_CLIENT_ID) return;
     let cancelled = false;
     loadGisScript()
       .then(() => {
@@ -57,8 +62,7 @@ export default function Login() {
             setLoading(true);
             try {
               const user = await loginGoogleRef.current(response.credential, true);
-              const dest = user.role === 'hospital' ? '/console' : user.role === 'admin' ? '/admin' : '/home';
-              navigateRef.current(dest);
+              navigateRef.current(roleHome(user));
             } catch (err) {
               setError(err.response?.data?.error || err.message || 'Google Sign-In failed');
             } finally {
@@ -70,19 +74,19 @@ export default function Login() {
       })
       .catch(() => setError('Google Sign-In unavailable'));
     return () => { cancelled = true; };
-  }, []);
+  }, [isHospital]);
 
   useEffect(() => {
-    if (!googleReady || !GOOGLE_CLIENT_ID || !googleBtnRef.current || !window.google?.accounts?.id) return;
+    if (isHospital || !googleReady || !GOOGLE_CLIENT_ID || !googleBtnRef.current || !window.google?.accounts?.id) return;
     googleBtnRef.current.innerHTML = '';
     window.google.accounts.id.renderButton(googleBtnRef.current, {
       theme: 'outline',
       size: 'large',
-      width: 312,
+      width: Math.min(312, (googleBtnRef.current.parentElement?.clientWidth || 312)),
       text: 'continue_with',
       shape: 'rectangular',
     });
-  }, [googleReady]);
+  }, [googleReady, isHospital]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -91,7 +95,8 @@ export default function Login() {
     setLoading(true);
     try {
       const user = await login(phone, password);
-      navigate(user.role === 'hospital' ? '/console' : user.role === 'admin' ? '/admin' : '/home');
+      // Destination from actual role only — ignore ?next / open redirects
+      navigate(roleHome(user));
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed. Please try again.');
     } finally {
@@ -100,7 +105,17 @@ export default function Login() {
   };
 
   return (
-    <div style={{ position: 'relative', minHeight: '100vh', overflow: 'hidden', background: '#0A0506' }}>
+    <div
+      className="safe-top safe-bottom"
+      style={{
+        position: 'relative',
+        minHeight: '100dvh',
+        overflow: 'hidden',
+        background: '#0A0506',
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+      }}
+    >
       <div style={{ position: 'absolute', inset: 0, opacity: 0.55 }}>
         <BloodBridgeScene />
       </div>
@@ -111,17 +126,61 @@ export default function Login() {
       }} />
 
       <div style={{
-        position: 'relative', zIndex: 2, minHeight: '100vh',
+        position: 'relative', zIndex: 2, minHeight: '100dvh',
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         padding: 24,
       }}>
         <div style={{ width: '100%', maxWidth: 360 }}>
-          <Link to="/" style={{
-            fontFamily: body, fontSize: 13, color: '#A89B96', textDecoration: 'none',
-            display: 'inline-block', marginBottom: 20,
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 12,
+            marginBottom: 20,
+            minHeight: 44,
           }}>
-            ← RaktaSetu
-          </Link>
+            <Link to="/" style={{
+              fontFamily: body, fontSize: 13, color: '#A89B96', textDecoration: 'none',
+              display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '8px 0',
+            }}>
+              ← RaktaSetu
+            </Link>
+            {!isHospital ? (
+              <Link
+                to="/login?role=hospital"
+                style={{
+                  fontFamily: body,
+                  fontSize: 12,
+                  color: '#6F6963',
+                  textDecoration: 'underline',
+                  textUnderlineOffset: 3,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  minHeight: 44,
+                  padding: '8px 0',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Hospital login
+              </Link>
+            ) : (
+              <Link
+                to="/login"
+                style={{
+                  fontFamily: body,
+                  fontSize: 12,
+                  color: '#A89B96',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  minHeight: 44,
+                  padding: '8px 0',
+                }}
+              >
+                Donor sign in
+              </Link>
+            )}
+          </div>
 
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
             <div style={{
@@ -132,10 +191,12 @@ export default function Login() {
             </div>
           </div>
           <p style={{ fontFamily: display, fontWeight: 800, fontSize: 22, textAlign: 'center', color: '#F2E8E6', margin: '0 0 4px' }}>
-            Welcome back
+            {isHospital ? 'Hospital sign in' : 'Donor sign in'}
           </p>
           <p style={{ fontFamily: body, fontSize: 13, color: '#A89B96', textAlign: 'center', margin: '0 0 22px' }}>
-            Sign in to your RaktaSetu account
+            {isHospital
+              ? 'Access your hospital console'
+              : 'Sign in to answer blood requests nearby'}
           </p>
 
           <form onSubmit={handleSubmit}>
@@ -154,8 +215,8 @@ export default function Login() {
                 type="text" placeholder="Phone or email" value={phone} onChange={(e) => setPhone(e.target.value)}
                 autoComplete="username"
                 style={{
-                  width: '100%', padding: '13px 14px 13px 40px', borderRadius: 12,
-                  border: '1px solid rgba(242,232,230,0.18)', fontFamily: body, fontSize: 15,
+                  width: '100%', padding: '14px 14px 14px 40px', borderRadius: 12, minHeight: 48,
+                  border: '1px solid rgba(242,232,230,0.18)', fontFamily: body, fontSize: 16,
                   background: 'rgba(255,255,255,0.06)', color: '#F2E8E6',
                 }}
               />
@@ -164,9 +225,10 @@ export default function Login() {
               <Lock size={16} color="#A89B96" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
               <input
                 type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
                 style={{
-                  width: '100%', padding: '13px 14px 13px 40px', borderRadius: 12,
-                  border: '1px solid rgba(242,232,230,0.18)', fontFamily: body, fontSize: 15,
+                  width: '100%', padding: '14px 14px 14px 40px', borderRadius: 12, minHeight: 48,
+                  border: '1px solid rgba(242,232,230,0.18)', fontFamily: body, fontSize: 16,
                   background: 'rgba(255,255,255,0.06)', color: '#F2E8E6',
                 }}
               />
@@ -174,7 +236,7 @@ export default function Login() {
             <Btn kind="primary" full disabled={loading}>{loading ? 'Signing in...' : 'Sign in'}</Btn>
           </form>
 
-          {GOOGLE_CLIENT_ID ? (
+          {!isHospital && GOOGLE_CLIENT_ID ? (
             <div style={{ marginTop: 18 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 12px' }}>
                 <div style={{ flex: 1, height: 1, background: 'rgba(242,232,230,0.15)' }} />
@@ -182,14 +244,15 @@ export default function Login() {
                 <div style={{ flex: 1, height: 1, background: 'rgba(242,232,230,0.15)' }} />
               </div>
               <label style={{
-                display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 12,
-                fontFamily: body, fontSize: 12, color: '#A89B96', cursor: 'pointer',
+                display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 12,
+                fontFamily: body, fontSize: 13, color: '#A89B96', cursor: 'pointer',
+                minHeight: 44,
               }}>
                 <input
                   type="checkbox"
                   checked={googleConsent}
                   onChange={(e) => setGoogleConsent(e.target.checked)}
-                  style={{ marginTop: 2 }}
+                  style={{ marginTop: 4, width: 18, height: 18, flexShrink: 0 }}
                 />
                 <span>
                   I consent to RaktaSetu processing my account data per the{' '}
@@ -202,17 +265,26 @@ export default function Login() {
                   display: 'flex', justifyContent: 'center',
                   opacity: googleConsent ? 1 : 0.45,
                   pointerEvents: googleConsent ? 'auto' : 'none',
+                  minHeight: 44,
                 }}
               />
             </div>
           ) : null}
 
           <p style={{ fontFamily: body, fontSize: 12, color: '#6F6963', textAlign: 'center', marginTop: 18, lineHeight: 1.45 }}>
-            Demo: +919876543210 / password123
+            {isHospital
+              ? 'Demo: +918312456789 / password123'
+              : 'Demo: +919876543210 / password123'}
           </p>
 
           <p style={{ fontFamily: body, fontSize: 13, color: '#A89B96', textAlign: 'center', marginTop: 14 }}>
-            New here? <Link to="/register" style={{ color: '#F2E8E6', fontWeight: 700, textDecoration: 'none' }}>Create an account</Link>
+            New here?{' '}
+            <Link
+              to={isHospital ? '/register?role=hospital' : '/register'}
+              style={{ color: '#F2E8E6', fontWeight: 700, textDecoration: 'none' }}
+            >
+              Create an account
+            </Link>
           </p>
         </div>
       </div>

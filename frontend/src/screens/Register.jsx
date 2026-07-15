@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { User, Phone, Mail, Lock, Droplet, MapPin, Calendar } from 'lucide-react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { User, Phone, Mail, Lock, MapPin, Calendar } from 'lucide-react';
 import { T, GROUPS } from '../theme.js';
 import Btn from '../components/Btn.jsx';
 import { useAuth } from '../hooks/useAuth.js';
+import { roleHome, parseAuthRole } from '../lib/roleHome.js';
 
 const body = "'Public Sans', 'Segoe UI', system-ui, sans-serif";
 const display = "'Anek Latin', 'Segoe UI', system-ui, sans-serif";
 
 export default function Register() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const role = parseAuthRole(searchParams);
+  const isHospital = role === 'hospital';
   const { register } = useAuth();
-  const [role, setRole] = useState('donor');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -27,20 +30,35 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!name || !phone || !password || !city || !state || !dob) { setError('Please fill all required fields'); return; }
-    if (role === 'donor' && !bloodGroup) { setError('Please select your blood group'); return; }
+    if (!name || !phone || !password || !city || !state || !dob) {
+      setError('Please fill all required fields');
+      return;
+    }
+    if (role === 'donor' && !bloodGroup) {
+      setError('Please select your blood group');
+      return;
+    }
     const today = new Date();
     const birthDate = new Date(dob);
     let age = today.getFullYear() - birthDate.getFullYear();
     const m = today.getMonth() - birthDate.getMonth();
     if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
-    if (age < 18) { setError('You must be at least 18 years old to register'); return; }
-    if (!consentGiven) { setError('You must consent to processing your personal and health data'); return; }
+    if (age < 18) {
+      setError('You must be at least 18 years old to register');
+      return;
+    }
+    if (!consentGiven) {
+      setError('You must consent to processing your personal and health data');
+      return;
+    }
     setLoading(true);
     try {
-      const payload = { name, phone, email, password, role, city, state, blood_group: bloodGroup, dob, consent_given: true };
+      const payload = {
+        name, phone, email, password, role, city, state,
+        blood_group: bloodGroup, dob, consent_given: true,
+      };
       const user = await register(payload);
-      navigate(user.role === 'hospital' ? '/console' : '/home');
+      navigate(roleHome(user));
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed. Please try again.');
     } finally {
@@ -48,38 +66,102 @@ export default function Register() {
     }
   };
 
-  const inputStyle = { width: '100%', padding: '13px 14px', borderRadius: 12, border: `1px solid ${T.line}`, fontFamily: body, fontSize: 15, background: T.card };
+  const inputStyle = {
+    width: '100%',
+    padding: '14px 14px',
+    borderRadius: 12,
+    border: `1px solid ${T.line}`,
+    fontFamily: body,
+    fontSize: 16,
+    background: T.card,
+    minHeight: 48,
+  };
 
   return (
-    <div style={{ minHeight: '100vh', padding: '24px 20px 40px', background: T.porcelain }}>
+    <div
+      className="safe-top safe-bottom"
+      style={{
+        minHeight: '100dvh',
+        padding: 'max(24px, env(safe-area-inset-top)) 20px max(40px, env(safe-area-inset-bottom))',
+        background: T.porcelain,
+      }}
+    >
       <div style={{ maxWidth: 360, margin: '0 auto' }}>
-        <p style={{ fontFamily: display, fontWeight: 800, fontSize: 22, color: T.ink, margin: '0 0 4px' }}>Create account</p>
-        <p style={{ fontFamily: body, fontSize: 13, color: T.mut, margin: '0 0 20px' }}>Join RaktaSetu as a donor or blood bank</p>
-
-        <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
-          {['donor', 'hospital'].map((r) => (
-            <button key={r} onClick={() => setRole(r)} style={{
-              flex: 1, fontFamily: display, fontWeight: 700, fontSize: 13, padding: '10px 0', borderRadius: 12,
-              background: role === r ? T.oxblood : T.card, color: role === r ? '#fff' : T.mut,
-              border: `1px solid ${role === r ? T.oxbloodDark : T.line}`, cursor: 'pointer',
-            }}>
-              {r === 'donor' ? 'Blood donor' : 'Hospital / Blood bank'}
-            </button>
-          ))}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 12,
+          marginBottom: 16,
+          minHeight: 44,
+        }}>
+          <Link to="/" style={{
+            fontFamily: body, fontSize: 13, color: T.mut, textDecoration: 'none',
+            display: 'inline-flex', alignItems: 'center', minHeight: 44,
+          }}>
+            ← RaktaSetu
+          </Link>
+          {!isHospital ? (
+            <Link
+              to="/register?role=hospital"
+              style={{
+                fontFamily: body,
+                fontSize: 12,
+                color: T.faint,
+                textDecoration: 'underline',
+                textUnderlineOffset: 3,
+                display: 'inline-flex',
+                alignItems: 'center',
+                minHeight: 44,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Hospital registration
+            </Link>
+          ) : (
+            <Link
+              to="/register"
+              style={{
+                fontFamily: body,
+                fontSize: 12,
+                color: T.mut,
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                minHeight: 44,
+              }}
+            >
+              Donor registration
+            </Link>
+          )}
         </div>
+
+        <p style={{ fontFamily: display, fontWeight: 800, fontSize: 22, color: T.ink, margin: '0 0 4px' }}>
+          {isHospital ? 'Register hospital' : 'Create donor account'}
+        </p>
+        <p style={{ fontFamily: body, fontSize: 13, color: T.mut, margin: '0 0 20px' }}>
+          {isHospital
+            ? 'Join RaktaSetu as a blood bank or hospital'
+            : 'Join the living bridge — donate when nearby patients need you'}
+        </p>
 
         <form onSubmit={handleSubmit}>
           {error && (
-            <div style={{ background: T.arterialSoft, border: '1px solid #F3C9D0', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontFamily: body, fontSize: 13, color: T.arterial }}>
+            <div style={{
+              background: T.arterialSoft, border: '1px solid #F3C9D0', borderRadius: 10,
+              padding: '10px 14px', marginBottom: 14, fontFamily: body, fontSize: 13, color: T.arterial,
+            }}>
               {error}
             </div>
           )}
 
           <div style={{ marginBottom: 12 }}>
-            <label style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Full name</label>
+            <label style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>
+              {isHospital ? 'Hospital / blood bank name' : 'Full name'}
+            </label>
             <div style={{ position: 'relative' }}>
               <User size={16} color={T.faint} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
-              <input type="text" placeholder="Your full name" value={name} onChange={(e) => setName(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
+              <input type="text" placeholder={isHospital ? 'Hospital name' : 'Your full name'} value={name} onChange={(e) => setName(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
             </div>
           </div>
 
@@ -115,16 +197,26 @@ export default function Register() {
             </div>
           </div>
 
-          {role === 'donor' && (
+          {!isHospital && (
             <div style={{ marginBottom: 12 }}>
               <label style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Blood group</label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
                 {GROUPS.map((g) => (
-                  <button key={g} type="button" onClick={() => setBloodGroup(g)} style={{
-                    fontFamily: display, fontWeight: 800, fontSize: 15, padding: '10px 0', borderRadius: 10,
-                    background: bloodGroup === g ? T.oxblood : T.card, color: bloodGroup === g ? '#fff' : T.mut,
-                    border: `1px solid ${bloodGroup === g ? T.oxbloodDark : T.line}`, cursor: 'pointer',
-                  }}>{g}</button>
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => setBloodGroup(g)}
+                    style={{
+                      fontFamily: display, fontWeight: 800, fontSize: 15, padding: '12px 0',
+                      minHeight: 44, borderRadius: 10,
+                      background: bloodGroup === g ? T.oxblood : T.card,
+                      color: bloodGroup === g ? '#fff' : T.mut,
+                      border: `1px solid ${bloodGroup === g ? T.oxbloodDark : T.line}`,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {g}
+                  </button>
                 ))}
               </div>
             </div>
@@ -144,25 +236,33 @@ export default function Register() {
             </div>
           </div>
 
-          <div style={{ marginBottom: 14, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+          <div style={{ marginBottom: 14, display: 'flex', alignItems: 'flex-start', gap: 10, minHeight: 44 }}>
             <input
               type="checkbox"
               id="consent"
               checked={consentGiven}
               onChange={(e) => setConsentGiven(e.target.checked)}
-              style={{ marginTop: 3, accentColor: T.oxblood }}
+              style={{ marginTop: 3, accentColor: T.oxblood, width: 18, height: 18, flexShrink: 0 }}
             />
-            <label htmlFor="consent" style={{ fontFamily: body, fontSize: 12, color: T.ink, lineHeight: 1.4 }}>
+            <label htmlFor="consent" style={{ fontFamily: body, fontSize: 13, color: T.ink, lineHeight: 1.4 }}>
               I consent to the processing of my personal and health data for blood donation matching purposes.
               I have read and agree to the <Link to="/privacy" style={{ color: T.oxblood }}>Privacy Policy</Link>.
             </label>
           </div>
 
-          <Btn kind="primary" full disabled={loading}>{loading ? 'Creating account...' : 'Create account'}</Btn>
+          <Btn kind="primary" full disabled={loading}>
+            {loading ? 'Creating account...' : isHospital ? 'Register hospital' : 'Create donor account'}
+          </Btn>
         </form>
 
         <p style={{ fontFamily: body, fontSize: 13, color: T.mut, textAlign: 'center', marginTop: 20 }}>
-          Already have an account? <Link to="/login" style={{ color: T.oxblood, fontWeight: 700, textDecoration: 'none' }}>Sign in</Link>
+          Already have an account?{' '}
+          <Link
+            to={isHospital ? '/login?role=hospital' : '/login'}
+            style={{ color: T.oxblood, fontWeight: 700, textDecoration: 'none' }}
+          >
+            Sign in
+          </Link>
         </p>
       </div>
     </div>

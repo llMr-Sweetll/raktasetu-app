@@ -14,7 +14,8 @@ curl https://raktasetu-production.up.railway.app/api/health
 ./test_login.sh https://raktasetu-production.up.railway.app
 ```
 
-Guest landing (Three.js “Living Bridge”) is at `/#/`. Sign-in at `/#/login`.
+Guest landing (mission / vision / Living Bridge) is at `/#/`.  
+Donor sign-in: `/#/login` · Hospital sign-in (discreet): `/#/login?role=hospital`.
 
 ## Contacts
 
@@ -36,9 +37,10 @@ Guest landing (Three.js “Living Bridge”) is at `/#/`. Sign-in at `/#/login`.
 ## Features
 
 ### Public
-- **Animated landing** — Three.js particle bridge (donor ↔ hospital)
+- **Landing** — mission, vision, how-it-works + Three.js Living Bridge (mobile-tuned)
+- **Donor-first auth** — default login/register for donors; hospital via discreet link (`?role=hospital`)
 - **PWA** — installable web app + service worker; local notifications; Web Push when VAPID keys are set
-- **Google Sign-In** — optional GIS OAuth into the same JWT session (when configured)
+- **Google Sign-In** — donor login only (GIS → JWT when `VITE_GOOGLE_CLIENT_ID` configured)
 
 ### Donor App
 - On-call toggle, emergency pings, GPS matching, credits, history, profile

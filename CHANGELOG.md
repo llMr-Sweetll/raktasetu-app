@@ -2,6 +2,21 @@
 
 All notable changes to RaktaSetu are documented in this file.
 
+## [1.2.0] — 2026-07-15
+
+### Added
+
+- Full landing: mission, vision, how-it-works (brand kit from `plan.md`)
+- Donor-first auth UX: `/#/login` and `/#/register` default to donor; hospital via discreet `?role=hospital` links
+- Centralized `roleHome()` — no open redirects from query params
+- Design + plan: `docs/superpowers/specs/2026-07-15-landing-auth-ux-design.md`, `docs/superpowers/plans/2026-07-15-landing-auth-ux.md`
+
+### Changed
+
+- Living Bridge: lower particle count / DPR on mobile; pause when tab hidden
+- Landing + auth: safe-area padding, ≥44px touch targets
+- Google Sign-In shown only on donor login
+
 ## [1.1.0] — 2026-07-15
 
 ### Added

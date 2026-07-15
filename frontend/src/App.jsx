@@ -4,6 +4,7 @@ import { useAuth } from './hooks/useAuth.js';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import { T } from './theme.js';
 import { API_URL, APP_VERSION } from './config.js';
+import { roleHome } from './lib/roleHome.js';
 
 console.log('[RaktaSetu] Version:', APP_VERSION, 'API:', API_URL);
 
@@ -31,13 +32,6 @@ import ConsoleVerify from './screens/ConsoleVerify.jsx';
 import AdminDashboard from './screens/AdminDashboard.jsx';
 
 const PUBLIC_PATHS = new Set(['/', '/login', '/register', '/privacy']);
-
-function roleHome(user) {
-  if (!user) return '/login';
-  if (user.role === 'hospital') return '/console';
-  if (user.role === 'admin') return '/admin';
-  return '/home';
-}
 
 function App() {
   const { user, loading } = useAuth();

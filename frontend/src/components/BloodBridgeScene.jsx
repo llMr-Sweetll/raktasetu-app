@@ -3,7 +3,8 @@ import * as THREE from 'three';
 
 /**
  * Living Bridge — particle bloodstream between donor ↔ hospital nodes.
- * Disposes WebGL resources on unmount. Respects prefers-reduced-motion.
+ * Mobile/WebView: lower dpr + particle count. Pauses when tab hidden.
+ * Disposes WebGL on unmount. Respects prefers-reduced-motion.
  */
 export default function BloodBridgeScene() {
   const mountRef = useRef(null);
@@ -13,6 +14,7 @@ export default function BloodBridgeScene() {
     if (!mount) return;
 
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const isMobile = window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
     const w = mount.clientWidth || window.innerWidth;
     const h = mount.clientHeight || window.innerHeight;
 
@@ -22,13 +24,13 @@ export default function BloodBridgeScene() {
     const camera = new THREE.PerspectiveCamera(48, w / h, 0.1, 100);
     camera.position.set(0, 0.35, 6.2);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    const renderer = new THREE.WebGLRenderer({ antialias: !isMobile, alpha: true });
+    const dprCap = isMobile ? 1.25 : 2;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, dprCap));
     renderer.setSize(w, h);
     renderer.setClearColor(0x0a0506, 1);
     mount.appendChild(renderer.domElement);
 
-    // Soft ambient + rim lights
     scene.add(new THREE.AmbientLight(0x3d0a14, 0.55));
     const key = new THREE.PointLight(0xc8102e, 1.4, 18);
     key.position.set(0, 1.2, 2);
@@ -37,8 +39,7 @@ export default function BloodBridgeScene() {
     fill.position.set(-3, -1, 1);
     scene.add(fill);
 
-    // Two bridge anchors (donor left, hospital right)
-    const nodeGeo = new THREE.SphereGeometry(0.22, 24, 24);
+    const nodeGeo = new THREE.SphereGeometry(0.22, isMobile ? 16 : 24, isMobile ? 16 : 24);
     const nodeMat = new THREE.MeshStandardMaterial({
       color: 0xc8102e,
       emissive: 0x7a1626,
@@ -52,8 +53,7 @@ export default function BloodBridgeScene() {
     right.position.set(2.6, 0, 0);
     scene.add(left, right);
 
-    // Soft glow shells
-    const shellGeo = new THREE.SphereGeometry(0.42, 20, 20);
+    const shellGeo = new THREE.SphereGeometry(0.42, isMobile ? 12 : 20, isMobile ? 12 : 20);
     const shellMat = new THREE.MeshBasicMaterial({
       color: 0xc8102e,
       transparent: true,
@@ -65,7 +65,6 @@ export default function BloodBridgeScene() {
     rightShell.position.copy(right.position);
     scene.add(leftShell, rightShell);
 
-    // Bridge arc curve
     const curve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(-2.6, 0, 0),
       new THREE.Vector3(-1.2, 0.85, 0.15),
@@ -74,7 +73,7 @@ export default function BloodBridgeScene() {
       new THREE.Vector3(2.6, 0, 0),
     ]);
 
-    const tubeGeo = new THREE.TubeGeometry(curve, 64, 0.018, 8, false);
+    const tubeGeo = new THREE.TubeGeometry(curve, isMobile ? 32 : 64, 0.018, 8, false);
     const tubeMat = new THREE.MeshBasicMaterial({
       color: 0x7a1626,
       transparent: true,
@@ -82,8 +81,7 @@ export default function BloodBridgeScene() {
     });
     scene.add(new THREE.Mesh(tubeGeo, tubeMat));
 
-    // Flowing particles along the bridge
-    const COUNT = reduceMotion ? 80 : 420;
+    const COUNT = reduceMotion ? 60 : isMobile ? 160 : 420;
     const positions = new Float32Array(COUNT * 3);
     const phases = new Float32Array(COUNT);
     const speeds = new Float32Array(COUNT);
@@ -109,8 +107,7 @@ export default function BloodBridgeScene() {
     const points = new THREE.Points(pGeo, pMat);
     scene.add(points);
 
-    // Ambient dust
-    const DUST = reduceMotion ? 40 : 160;
+    const DUST = reduceMotion ? 30 : isMobile ? 50 : 160;
     const dustPos = new Float32Array(DUST * 3);
     for (let i = 0; i < DUST; i++) {
       dustPos[i * 3] = (Math.random() - 0.5) * 10;
@@ -134,6 +131,7 @@ export default function BloodBridgeScene() {
     let raf = 0;
     let t0 = performance.now();
     const tmp = new THREE.Vector3();
+    let running = true;
 
     const onResize = () => {
       const nw = mount.clientWidth || window.innerWidth;
@@ -145,8 +143,8 @@ export default function BloodBridgeScene() {
     window.addEventListener('resize', onResize);
 
     const tick = (now) => {
+      if (!running) return;
       const elapsed = (now - t0) / 1000;
-      // Heartbeat ~72 bpm
       const beat = 1 + 0.06 * Math.pow(Math.max(0, Math.sin(elapsed * Math.PI * 2.4)), 8);
       left.scale.setScalar(beat);
       right.scale.setScalar(beat);
@@ -159,7 +157,6 @@ export default function BloodBridgeScene() {
         for (let i = 0; i < COUNT; i++) {
           phases[i] = (phases[i] + speeds[i] * 0.016) % 1;
           curve.getPoint(phases[i], tmp);
-          // slight lateral sway
           const sway = Math.sin(elapsed * 2 + i) * 0.04;
           attr.setXYZ(i, tmp.x, tmp.y + sway, tmp.z + sway * 0.5);
         }
@@ -173,11 +170,25 @@ export default function BloodBridgeScene() {
       raf = requestAnimationFrame(tick);
     };
 
+    const onVisibility = () => {
+      if (document.hidden) {
+        running = false;
+        cancelAnimationFrame(raf);
+      } else {
+        running = true;
+        t0 = performance.now() - (performance.now() - t0);
+        raf = requestAnimationFrame(tick);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
     raf = requestAnimationFrame(tick);
 
     return () => {
+      running = false;
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', onResize);
+      document.removeEventListener('visibilitychange', onVisibility);
       pGeo.dispose();
       pMat.dispose();
       dGeo.dispose();
