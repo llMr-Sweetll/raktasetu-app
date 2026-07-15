@@ -13,9 +13,12 @@ export function useAuth() {
       setLoading(false);
       return;
     }
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
     try {
       const res = await fetch(`${API_URL}/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
+        signal: ctrl.signal,
       });
       if (!res.ok) throw new Error();
       const data = await res.json();
@@ -24,6 +27,7 @@ export function useAuth() {
       localStorage.removeItem('token');
       setUser(null);
     } finally {
+      clearTimeout(timer);
       setLoading(false);
     }
   }, []);

@@ -59,7 +59,7 @@ export default function AdminDashboard() {
     <div style={{ minHeight: '100vh', background: '#0F1115', color: '#F0EEE9', maxWidth: 900, margin: '0 auto', padding: '20px 24px 40px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={() => navigate('/home')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8B909C' }}>
+          <button onClick={() => navigate('/admin')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8B909C' }} title="Admin home" aria-label="Admin home">
             <ArrowLeft size={20} />
           </button>
           <h1 style={{ fontFamily: display, fontWeight: 800, fontSize: 22, margin: 0, color: '#F0EEE9' }}>Admin Console</h1>

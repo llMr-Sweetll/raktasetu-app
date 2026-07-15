@@ -28,10 +28,26 @@ app.set('trust proxy', 1);
 
 const server = http.createServer(app);
 const DEFAULT_ORIGINS = ['http://localhost:5173', 'http://localhost:3001'];
-const ALLOWED_ORIGINS = (process.env.FRONTEND_ORIGINS || DEFAULT_ORIGINS.join(','))
-  .split(',')
-  .map((o) => o.trim())
-  .filter(Boolean);
+function buildAllowedOrigins() {
+  const fromEnv = (process.env.FRONTEND_ORIGINS || DEFAULT_ORIGINS.join(','))
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+  // Unified Railway deploy: Vite emits crossorigin assets that send Origin even same-origin.
+  // Missing production origin → CORS error → HTTP 500 JSON → SPA stuck on loading screen.
+  const extras = [];
+  for (const raw of [
+    process.env.RAILWAY_PUBLIC_DOMAIN,
+    process.env.RAILWAY_STATIC_URL,
+    process.env.RAILWAY_SERVICE_RAKTASETU_URL,
+  ]) {
+    if (!raw) continue;
+    const host = String(raw).replace(/^https?:\/\//, '').replace(/\/$/, '');
+    if (host) extras.push(`https://${host}`);
+  }
+  return [...new Set([...fromEnv, ...extras])];
+}
+const ALLOWED_ORIGINS = buildAllowedOrigins();
 
 const io = new Server(server, {
   cors: {
@@ -49,25 +65,26 @@ app.use(helmet({
   contentSecurityPolicy: false, // SPA assets + Socket.io on same origin
 }));
 
-// CORS — FRONTEND_ORIGINS=comma-separated list (same-origin SPA needs no extra origin)
+// CORS — never throw: cors(Error) becomes HTTP 500 and breaks module/CSS loads.
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || ALLOWED_ORIGINS.includes(origin)) {
       callback(null, true);
-    } else {
-      callback(new Error('CORS blocked: origin not allowed'));
+      return;
     }
+    callback(null, false);
   }
 }));
 app.use(express.json({ limit: '10kb' }));
 
-// Rate limiting
+// Rate limiting — API only (SPA assets must not share the 100/15m budget)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.ip || req.connection.remoteAddress || 'unknown'
+  keyGenerator: (req) => req.ip || req.connection.remoteAddress || 'unknown',
+  skip: (req) => !req.path.startsWith('/api'),
 });
 app.use(limiter);
 
@@ -151,11 +168,14 @@ if (serveFrontend) {
   app.use(express.static(frontendDist, { index: false }));
   app.get(/^(?!\/api(?:\/|$)|\/socket\.io(?:\/|$)).*/, (req, res, next) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    // Missing hashed assets must 404 as JSON/empty — never return index.html (breaks MIME checks)
+    if (path.extname(req.path)) return next();
     res.sendFile(path.join(frontendDist, 'index.html'), (err) => {
       if (err) next();
     });
   });
   console.log(`Serving frontend from ${frontendDist}`);
+  console.log(`CORS allowed origins: ${ALLOWED_ORIGINS.join(', ')}`);
 }
 
 /**
