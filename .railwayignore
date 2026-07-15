@@ -1,0 +1,5 @@
+# Let Railway's vite build win — local/tracked frontend/dist overwrites image build otherwise
+frontend/dist
+**/node_modules
+.git
+.cursor
