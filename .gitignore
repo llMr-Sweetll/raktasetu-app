@@ -10,8 +10,7 @@ node_modules/
 
 # Build outputs
 */dist/
-!frontend/dist/
-!frontend/dist/**/*
+frontend/dist/
 
 # Capacitor generated native projects (keep config, ignore build artifacts)
 frontend/ios/App/Pods/

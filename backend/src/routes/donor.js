@@ -1,8 +1,16 @@
 import express from 'express';
 import { query } from '../db.js';
-import { authenticate, requireRole } from '../middleware/auth.js';
+import { authenticate, requireActiveAccount, requireRole } from '../middleware/auth.js';
 import { v4 as uuidv4 } from 'uuid';
 import { logAudit } from '../utils/compliance.js';
+import {
+  donorProfileSchema,
+  donorRequestParamsSchema,
+  donorResponseSchema,
+  onCallSchema,
+  paginationSchema,
+  validate,
+} from '../validation/schemas.js';
 
 const router = express.Router();
 
@@ -20,8 +28,6 @@ const GIVERS = {
   'AB+': ['O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+']
 };
 
-const RARE = ['O-', 'AB-'];
-
 /**
  * Haversine distance in km between two lat/lng points
  */
@@ -34,7 +40,7 @@ function haversine(lat1, lon1, lat2, lon2) {
 }
 
 // All donor routes require donor role
-router.use(authenticate, requireRole('donor'));
+router.use(authenticate, requireActiveAccount, requireRole('donor'));
 
 /**
  * GET /api/donor/dashboard
@@ -118,7 +124,7 @@ router.get('/dashboard', async (req, res) => {
  * PATCH /api/donor/on-call
  * Toggle donor availability status
  */
-router.patch('/on-call', async (req, res) => {
+router.patch('/on-call', validate(onCallSchema), async (req, res) => {
   try {
     const { is_on_call } = req.body;
     const donorId = req.user.id;
@@ -127,6 +133,26 @@ router.patch('/on-call', async (req, res) => {
       return res.status(400).json({ success: false, error: 'is_on_call boolean required' });
     }
 
+    if (is_on_call) {
+      const eligibility = await query(
+        `SELECT blood_group,date_of_birth,phone,consent_given,next_eligible_date
+         FROM users WHERE id=$1`,
+        [donorId],
+      );
+      const donor = eligibility.rows[0];
+      if (!donor?.blood_group || !donor?.date_of_birth || !donor?.phone || !donor?.consent_given) {
+        return res.status(409).json({
+          success: false,
+          error: { code: 'DONOR_PROFILE_INCOMPLETE', message: 'Complete your donor profile before going on call' },
+        });
+      }
+      if (donor.next_eligible_date && new Date(donor.next_eligible_date) > new Date()) {
+        return res.status(409).json({
+          success: false,
+          error: { code: 'DONOR_NOT_ELIGIBLE', message: 'You are not yet eligible to donate again' },
+        });
+      }
+    }
     const result = await query(
       'UPDATE users SET is_on_call = $1, updated_at = NOW() WHERE id = $2 RETURNING is_on_call',
       [is_on_call, donorId]
@@ -149,7 +175,7 @@ router.patch('/on-call', async (req, res) => {
  * GET /api/donor/requests
  * Nearby active requests with distance
  */
-router.get('/requests', async (req, res) => {
+router.get('/requests', validate(paginationSchema, 'query'), async (req, res) => {
   try {
     const donorId = req.user.id;
     const userResult = await query(
@@ -185,7 +211,7 @@ router.get('/requests', async (req, res) => {
         return { ...r, distance_km: Math.round(dist * 10) / 10 };
       })
       .filter(r => r.distance_km <= radius)
-      .slice(0, 20);
+      .slice(0, req.query.limit);
 
     return res.json({ success: true, data: { requests } });
   } catch (err) {
@@ -198,7 +224,7 @@ router.get('/requests', async (req, res) => {
  * POST /api/donor/respond/:requestId
  * Accept or decline a blood request
  */
-router.post('/respond/:requestId', async (req, res) => {
+router.post('/respond/:requestId', validate(donorRequestParamsSchema, 'params'), validate(donorResponseSchema), async (req, res) => {
   try {
     const donorId = req.user.id;
     const { requestId } = req.params;
@@ -280,7 +306,7 @@ router.post('/respond/:requestId', async (req, res) => {
  * POST /api/donor/arrived/:requestId
  * Mark donor as arrived at hospital
  */
-router.post('/arrived/:requestId', async (req, res) => {
+router.post('/arrived/:requestId', validate(donorRequestParamsSchema, 'params'), async (req, res) => {
   try {
     const donorId = req.user.id;
     const { requestId } = req.params;
@@ -338,7 +364,7 @@ router.post('/arrived/:requestId', async (req, res) => {
  * GET /api/donor/credits
  * Credit balance + history
  */
-router.get('/credits', async (req, res) => {
+router.get('/credits', validate(paginationSchema, 'query'), async (req, res) => {
   try {
     const donorId = req.user.id;
 
@@ -355,8 +381,8 @@ router.get('/credits', async (req, res) => {
        FROM credits c
        LEFT JOIN donations d ON d.id = c.related_donation_id
        WHERE c.donor_id = $1
-       ORDER BY c.created_at DESC`,
-      [donorId]
+       ORDER BY c.created_at DESC,c.id DESC LIMIT $2`,
+      [donorId, req.query.limit]
     );
 
     return res.json({
@@ -373,7 +399,7 @@ router.get('/credits', async (req, res) => {
  * GET /api/donor/history
  * Donation history
  */
-router.get('/history', async (req, res) => {
+router.get('/history', validate(paginationSchema, 'query'), async (req, res) => {
   try {
     const donorId = req.user.id;
 
@@ -383,8 +409,8 @@ router.get('/history', async (req, res) => {
        LEFT JOIN hospitals h ON h.id = d.hospital_id
        LEFT JOIN blood_requests br ON br.id = d.request_id
        WHERE d.donor_id = $1
-       ORDER BY d.created_at DESC`,
-      [donorId]
+       ORDER BY d.created_at DESC,d.id DESC LIMIT $2`,
+      [donorId, req.query.limit]
     );
 
     return res.json({ success: true, data: { donations: result.rows } });
@@ -398,10 +424,10 @@ router.get('/history', async (req, res) => {
  * PATCH /api/donor/profile
  * Update donor profile and location
  */
-router.patch('/profile', async (req, res) => {
+router.patch('/profile', validate(donorProfileSchema), async (req, res) => {
   try {
     const donorId = req.user.id;
-    const { name, phone, blood_group, latitude, longitude, city, state, ping_radius_km } = req.body;
+    const { name, phone, blood_group, date_of_birth, latitude, longitude, city, state, ping_radius_km } = req.body;
 
     const updates = [];
     const values = [];
@@ -410,17 +436,14 @@ router.patch('/profile', async (req, res) => {
     if (name !== undefined) { updates.push(`name = $${idx++}`); values.push(name); }
     if (phone !== undefined) { updates.push(`phone = $${idx++}`); values.push(phone); }
     if (blood_group !== undefined) { updates.push(`blood_group = $${idx++}`); values.push(blood_group); }
+    if (date_of_birth !== undefined) { updates.push(`date_of_birth = $${idx++}`); values.push(date_of_birth); }
     if (latitude !== undefined) { updates.push(`latitude = $${idx++}`); values.push(latitude); }
     if (longitude !== undefined) { updates.push(`longitude = $${idx++}`); values.push(longitude); }
     if (city !== undefined) { updates.push(`city = $${idx++}`); values.push(city); }
     if (state !== undefined) { updates.push(`state = $${idx++}`); values.push(state); }
     if (ping_radius_km !== undefined) {
-      const radiusNum = parseInt(ping_radius_km, 10);
-      if (isNaN(radiusNum) || radiusNum < 1 || radiusNum > 100) {
-        return res.status(400).json({ success: false, error: 'ping_radius_km must be between 1 and 100' });
-      }
       updates.push(`ping_radius_km = $${idx++}`);
-      values.push(radiusNum);
+      values.push(ping_radius_km);
     }
 
     if (updates.length === 0) {
@@ -431,7 +454,7 @@ router.patch('/profile', async (req, res) => {
     values.push(donorId);
 
     const result = await query(
-      `UPDATE users SET ${updates.join(', ')} WHERE id = $${idx} RETURNING id, email, phone, name, role, blood_group, latitude, longitude, city, state, is_verified, is_on_call, ping_radius_km, updated_at`,
+      `UPDATE users SET ${updates.join(', ')} WHERE id = $${idx} RETURNING id, email, phone, name, role, blood_group, date_of_birth, latitude, longitude, city, state, is_verified, is_on_call, ping_radius_km, updated_at`,
       values
     );
 

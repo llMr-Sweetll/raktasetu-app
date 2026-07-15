@@ -1,8 +1,18 @@
 import express from 'express';
 import { query } from '../db.js';
-import { authenticate, requireRole } from '../middleware/auth.js';
+import { authenticate, requireActiveAccount, requireApprovedHospital, requireRole } from '../middleware/auth.js';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
+import { completeDonation } from '../services/donationService.js';
+import {
+  donationCompletionSchema,
+  donorSearchQuerySchema,
+  hospitalRequestQuerySchema,
+  requestCreateSchema,
+  requestIdParamsSchema,
+  requestStatusSchema,
+  validate,
+} from '../validation/schemas.js';
 
 const router = express.Router();
 
@@ -43,7 +53,7 @@ function generateRefCode() {
 }
 
 // All hospital routes require hospital role
-router.use(authenticate, requireRole('hospital'));
+router.use(authenticate, requireActiveAccount, requireRole('hospital'), requireApprovedHospital);
 
 /**
  * GET /api/hospital/dashboard
@@ -111,7 +121,7 @@ router.get('/dashboard', async (req, res) => {
  * POST /api/hospital/requests
  * Create a new blood request
  */
-router.post('/requests', async (req, res) => {
+router.post('/requests', validate(requestCreateSchema), async (req, res) => {
   try {
     const hospitalResult = await query('SELECT id, latitude, longitude FROM hospitals WHERE user_id = $1', [req.user.id]);
     if (hospitalResult.rows.length === 0) {
@@ -210,7 +220,7 @@ router.post('/requests', async (req, res) => {
  * GET /api/hospital/requests
  * Search requests by ref code (for QR/manual verification)
  */
-router.get('/requests', async (req, res) => {
+router.get('/requests', validate(hospitalRequestQuerySchema, 'query'), async (req, res) => {
   try {
     const hospitalResult = await query('SELECT id FROM hospitals WHERE user_id = $1', [req.user.id]);
     if (hospitalResult.rows.length === 0) {
@@ -221,7 +231,8 @@ router.get('/requests', async (req, res) => {
 
     if (ref) {
       const requestResult = await query(
-        `SELECT br.*, u.name AS donor_name, dr.donor_id, dr.status AS donor_status, dr.responded_at
+        `SELECT br.*, u.name AS donor_name, u.blood_group AS donor_blood_group,
+                dr.donor_id, dr.status AS donor_status, dr.responded_at
          FROM blood_requests br
          LEFT JOIN donor_responses dr ON dr.request_id = br.id AND dr.status = 'arrived'
          LEFT JOIN users u ON u.id = dr.donor_id
@@ -239,7 +250,7 @@ router.get('/requests', async (req, res) => {
           donor: row.donor_id ? {
             id: row.donor_id,
             name: row.donor_name,
-            blood_group: row.blood_group,
+            blood_group: row.donor_blood_group,
             ref_code: row.ref_code,
             request_id: row.id,
             responded_at: row.responded_at
@@ -250,8 +261,9 @@ router.get('/requests', async (req, res) => {
 
     // No ref provided — list all requests
     const requestsResult = await query(
-      `SELECT br.* FROM blood_requests br WHERE br.hospital_id = $1 ORDER BY br.created_at DESC`,
-      [hospitalId]
+      `SELECT br.* FROM blood_requests br WHERE br.hospital_id = $1
+       ORDER BY br.created_at DESC,br.id DESC LIMIT $2`,
+      [hospitalId, req.query.limit]
     );
     return res.json({ success: true, data: { requests: requestsResult.rows } });
   } catch (err) {
@@ -264,7 +276,7 @@ router.get('/requests', async (req, res) => {
  * GET /api/hospital/requests/:id
  * Request detail with donor responses
  */
-router.get('/requests/:id', async (req, res) => {
+router.get('/requests/:id', validate(requestIdParamsSchema, 'params'), async (req, res) => {
   try {
     const hospitalResult = await query('SELECT id FROM hospitals WHERE user_id = $1', [req.user.id]);
     if (hospitalResult.rows.length === 0) {
@@ -308,7 +320,7 @@ router.get('/requests/:id', async (req, res) => {
  * PATCH /api/hospital/requests/:id
  * Update request status (open, filled, closed)
  */
-router.patch('/requests/:id', async (req, res) => {
+router.patch('/requests/:id', validate(requestIdParamsSchema, 'params'), validate(requestStatusSchema), async (req, res) => {
   try {
     const hospitalResult = await query('SELECT id FROM hospitals WHERE user_id = $1', [req.user.id]);
     if (hospitalResult.rows.length === 0) {
@@ -349,159 +361,22 @@ router.patch('/requests/:id', async (req, res) => {
  * POST /api/hospital/verify-donation
  * Verify donor arrival (QR scan or manual ref code)
  */
-router.post('/verify-donation', async (req, res) => {
+router.post('/verify-donation', validate(donationCompletionSchema), async (req, res) => {
   try {
-    const hospitalResult = await query('SELECT id FROM hospitals WHERE user_id = $1', [req.user.id]);
-    if (hospitalResult.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Hospital profile not found' });
-    }
-    const hospitalId = hospitalResult.rows[0].id;
-
-    const { ref_code, donor_id, request_id, units, blood_group } = req.body;
-
-    // Validate units
-    const unitsNum = parseInt(units, 10);
-    if (isNaN(unitsNum) || unitsNum < 1 || unitsNum > 10) {
-      return res.status(400).json({ success: false, error: 'units must be between 1 and 10' });
-    }
-
-    // Verify by ref_code or by donor_id + request_id
-    let verifiedDonorId = donor_id;
-    let verifiedRequestId = request_id;
-    let verifiedBloodGroup = blood_group;
-
-    if (ref_code) {
-      const reqResult = await query(
-        'SELECT id, blood_group, hospital_id FROM blood_requests WHERE ref_code = $1',
-        [ref_code]
-      );
-      if (reqResult.rows.length === 0) {
-        return res.status(404).json({ success: false, error: 'Invalid reference code' });
-      }
-      const request = reqResult.rows[0];
-      if (request.hospital_id !== hospitalId) {
-        return res.status(403).json({ success: false, error: 'Request does not belong to your hospital' });
-      }
-      verifiedRequestId = request.id;
-      verifiedBloodGroup = request.blood_group;
-
-      // Find the donor who responded and arrived
-      if (!verifiedDonorId) {
-        const respResult = await query(
-          `SELECT donor_id FROM donor_responses
-           WHERE request_id = $1 AND status = 'arrived'
-           ORDER BY arrived_at DESC LIMIT 1`,
-          [verifiedRequestId]
-        );
-        if (respResult.rows.length === 0) {
-          return res.status(404).json({ success: false, error: 'No donor has arrived for this request' });
-        }
-        verifiedDonorId = respResult.rows[0].donor_id;
-      }
-    }
-
-    if (!verifiedDonorId) {
-      return res.status(400).json({ success: false, error: 'donor_id or ref_code required' });
-    }
-
-    // If blood_group not provided, fetch from request
-    if (!verifiedBloodGroup && verifiedRequestId) {
-      const bgResult = await query('SELECT blood_group FROM blood_requests WHERE id = $1', [verifiedRequestId]);
-      if (bgResult.rows.length > 0) {
-        verifiedBloodGroup = bgResult.rows[0].blood_group;
-      }
-    }
-
-    // Check donor response status
-    const responseCheck = await query(
-      `SELECT id, status FROM donor_responses
-       WHERE request_id = $1 AND donor_id = $2`,
-      [verifiedRequestId, verifiedDonorId]
-    );
-
-    if (responseCheck.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'No donor response found for this request' });
-    }
-
-    // Update donor response to completed
-    await query(
-      `UPDATE donor_responses SET status = 'completed', completed_at = NOW()
-       WHERE request_id = $1 AND donor_id = $2`,
-      [verifiedRequestId, verifiedDonorId]
-    );
-
-    // Create donation record
-    const donationId = uuidv4();
-    const donationRef = generateRefCode();
-    const creditsEarned = 100;
-
-    // Fallback blood group: try request, then donor
-    let finalBloodGroup = verifiedBloodGroup;
-    if (!finalBloodGroup) {
-      const donorBg = await query('SELECT blood_group FROM users WHERE id = $1', [verifiedDonorId]);
-      finalBloodGroup = donorBg.rows[0]?.blood_group || '?';
-    }
-
-    await query(
-      `INSERT INTO donations (id, donor_id, request_id, hospital_id, units, blood_group, verified_by, verified_at, credits_earned, ref_code, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8, $9, NOW())`,
-      [
-        donationId, verifiedDonorId, verifiedRequestId, hospitalId,
-        unitsNum, finalBloodGroup, req.user.id,
-        creditsEarned, donationRef
-      ]
-    );
-
-    // Award credits
-    const creditId = uuidv4();
-    await query(
-      `INSERT INTO credits (id, donor_id, amount, type, description, related_donation_id, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
-      [
-        creditId, verifiedDonorId, creditsEarned, 'earned',
-        `Donation verified at ${req.user.name || 'hospital'}`,
-        donationId
-      ]
-    );
-
-    // Update donor's last donation date and next eligible date
-    const today = new Date();
-    const nextEligible = new Date(today);
-    nextEligible.setDate(nextEligible.getDate() + 56); // 8 weeks
-
-    await query(
-      `UPDATE users SET last_donation_date = $1, next_eligible_date = $2, updated_at = NOW()
-       WHERE id = $3`,
-      [today, nextEligible, verifiedDonorId]
-    );
-
-    // Notify donor
-    const notifId = uuidv4();
-    await query(
-      `INSERT INTO notifications (id, user_id, type, title, body, data, is_read, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
-      [
-        notifId, verifiedDonorId, 'donation_verified',
-        'Donation Verified!',
-        `You earned ${creditsEarned} credits for your donation. Thank you for saving lives!`,
-        JSON.stringify({ donation_id: donationId, credits_earned: creditsEarned }),
-        false
-      ]
-    );
-
-    return res.json({
-      success: true,
-      data: {
-        donation_id: donationId,
-        ref_code: donationRef,
-        credits_earned: creditsEarned,
-        donor_id: verifiedDonorId,
-        request_id: verifiedRequestId
-      }
+    const donation = await completeDonation({
+      actor: req.user,
+      requestId: req.body.request_id,
+      donorId: req.body.donor_id,
+      units: req.body.units,
+      req,
     });
+    return res.json({ success: true, data: { donation } });
   } catch (err) {
     console.error('Verify donation error:', err);
-    return res.status(500).json({ success: false, error: 'Failed to verify donation' });
+    return res.status(err.status || 500).json({
+      success: false,
+      error: { code: err.code || 'DONATION_COMPLETION_FAILED', message: err.message || 'Failed to verify donation' },
+    });
   }
 });
 
@@ -509,7 +384,7 @@ router.post('/verify-donation', async (req, res) => {
  * GET /api/hospital/donors
  * Nearby on-call donors
  */
-router.get('/donors', async (req, res) => {
+router.get('/donors', validate(donorSearchQuerySchema, 'query'), async (req, res) => {
   try {
     const hospitalResult = await query('SELECT id, latitude, longitude FROM hospitals WHERE user_id = $1', [req.user.id]);
     if (hospitalResult.rows.length === 0) {
@@ -517,7 +392,7 @@ router.get('/donors', async (req, res) => {
     }
     const hospital = hospitalResult.rows[0];
 
-    const { radius = 10, blood_group } = req.query;
+    const { radius, blood_group, limit } = req.query;
 
     let donorQuery = `SELECT id, name, blood_group, latitude, longitude, city, is_on_call, last_donation_date, next_eligible_date
                       FROM users WHERE role = 'donor' AND is_on_call = true`;
@@ -528,6 +403,8 @@ router.get('/donors', async (req, res) => {
       queryParams.push(blood_group);
     }
 
+    donorQuery += ` ORDER BY created_at DESC LIMIT $${queryParams.length + 1}`;
+    queryParams.push(Math.min(limit * 5, 500));
     const donorsResult = await query(donorQuery, queryParams);
 
     const donors = donorsResult.rows
@@ -539,7 +416,8 @@ router.get('/donors', async (req, res) => {
         return { ...d, distance_km: Math.round(dist * 10) / 10 };
       })
       .filter(d => d.distance_km <= parseInt(radius))
-      .sort((a, b) => a.distance_km - b.distance_km);
+      .sort((a, b) => a.distance_km - b.distance_km)
+      .slice(0, limit);
 
     return res.json({ success: true, data: { donors } });
   } catch (err) {

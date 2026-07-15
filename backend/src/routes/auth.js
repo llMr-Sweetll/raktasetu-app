@@ -1,534 +1,519 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
-import { OAuth2Client } from 'google-auth-library';
 import { query } from '../db.js';
+import { withAuthorizationContext } from '../db/authorizedTransaction.js';
 import { authenticate } from '../middleware/auth.js';
-import { logAudit, validatePassword, blacklistToken } from '../utils/compliance.js';
+import { issueSession, createRefreshToken, hashRefreshToken, issueAccessToken } from '../auth/session.js';
+import { createOneTimeToken, decideGoogleFlow, hashOneTimeToken, verifyGoogleIdentity } from '../auth/google.js';
+import { logAudit } from '../utils/compliance.js';
 import { buildAccountExport } from '../utils/dataExport.js';
+import { disconnectUser } from '../realtime/publisher.js';
+import {
+  consentSchema,
+  googleLinkSchema,
+  googleOnboardingSchema,
+  googleTokenSchema,
+  loginSchema,
+  registrationSchema,
+  validate,
+} from '../validation/schemas.js';
 
 const router = express.Router();
-const CURRENT_POLICY_VERSION = '2026-07-15';
 
-// Lazy — dotenv may load after this module is imported
-function getGoogleClient() {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  if (!clientId) return null;
-  return new OAuth2Client(clientId);
+function failure(res, status, code, message) {
+  return res.status(status).json({ success: false, error: { code, message } });
 }
 
-/* ─── Validation helpers ─── */
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_RE = /^\+?[0-9\s\-]{8,20}$/;
-const MAX_NAME_LEN = 100;
-const MAX_EMAIL_LEN = 255;
-const MAX_PHONE_LEN = 20;
-
-function sanitize(str) {
-  if (typeof str !== 'string') return '';
-  return str.trim();
+function publicUser(user) {
+  const safe = { ...user };
+  delete safe.password_hash;
+  delete safe.google_sub;
+  delete safe.token_version;
+  delete safe.deleted_at;
+  return safe;
 }
 
-/**
- * Generate JWT token with jti and token_version for secure logout
- */
-function generateToken(user) {
-  const jti = uuidv4();
-  const expiresIn = process.env.JWT_EXPIRES_IN || '7d';
-  const token = jwt.sign(
-    { id: user.id, email: user.email, role: user.role, name: user.name, jti, token_version: user.token_version || 0 },
-    process.env.JWT_SECRET,
-    { expiresIn }
-  );
-  return { token, jti, expiresIn };
-}
-
-function parseExpiresInToDate(expiresIn) {
-  const match = expiresIn.match(/^(\d+)([dhms])$/);
-  if (!match) return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  const val = parseInt(match[1], 10);
-  const unit = match[2];
-  const ms = unit === 'd' ? val * 24 * 60 * 60 * 1000 :
-             unit === 'h' ? val * 60 * 60 * 1000 :
-             unit === 'm' ? val * 60 * 1000 :
-             val * 1000;
-  return new Date(Date.now() + ms);
-}
-
-/**
- * POST /api/auth/register
- * Register a new donor or hospital
- */
-router.post('/register', async (req, res) => {
+router.post('/register', validate(registrationSchema), async (req, res) => {
+  const input = req.body;
   try {
-    const {
-      email, phone, password, name, role,
-      blood_group, latitude, longitude, city, state,
-      hospital_name, address, license_number, consent_given,
-      consent_policy_version
-    } = req.body;
-
-    if (!email || !phone || !password || !name || !role) {
-      return res.status(400).json({ success: false, error: 'Email, phone, password, name, and role are required' });
-    }
-
-    if (!['donor', 'hospital'].includes(role)) {
-      return res.status(400).json({ success: false, error: 'Role must be donor or hospital' });
-    }
-
-    // Privacy readiness: require an affirmative choice before health data processing.
-    if (!consent_given) {
-      return res.status(400).json({ success: false, error: 'Consent is required to process your personal and health data' });
-    }
-    if (consent_policy_version && consent_policy_version !== CURRENT_POLICY_VERSION) {
-      return res.status(409).json({ success: false, error: 'The privacy notice has changed. Refresh and review it before continuing.' });
-    }
-
-    // Password strength validation
-    const pwCheck = validatePassword(password);
-    if (!pwCheck.valid) {
-      return res.status(400).json({ success: false, error: pwCheck.errors.join('; ') });
-    }
-
-    // Check if email already exists
-    const existing = await query('SELECT id FROM users WHERE email = $1', [email]);
-    if (existing.rows.length > 0) {
-      return res.status(409).json({ success: false, error: 'Email already registered' });
-    }
-
-    // Hash password
-    const password_hash = await bcrypt.hash(password, 12);
-    const userId = uuidv4();
-    const now = new Date();
-
-    // Insert user
-    const userResult = await query(
-      `INSERT INTO users (id, email, phone, password_hash, name, role, blood_group, latitude, longitude, city, state, is_verified, is_on_call, ping_radius_km, consent_given, consent_given_at, consent_policy_version, consent_source, token_version, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
-       RETURNING id, email, phone, name, role, blood_group, latitude, longitude, city, state, is_verified, is_on_call, ping_radius_km, consent_given, consent_given_at, consent_policy_version, consent_source, created_at`,
-      [
-        userId, email, phone, password_hash, name, role,
-        blood_group || null, latitude || null, longitude || null, city || null, state || null,
-        false, role === 'donor' ? false : null, role === 'donor' ? 10 : null,
-        true, now, CURRENT_POLICY_VERSION, 'registration_form', 0, now, now
-      ]
-    );
-
-    const user = userResult.rows[0];
-
-    // If hospital role, create hospital record
-    if (role === 'hospital') {
-      const hospitalId = uuidv4();
-      await query(
-        `INSERT INTO hospitals (id, user_id, name, address, license_number, latitude, longitude, city, state, phone, is_verified, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-        [
-          hospitalId, userId, hospital_name || name, address || '', license_number || null,
-          latitude || null, longitude || null, city || null, state || null,
-          phone || null, false, now
-        ]
+    const result = await withAuthorizationContext({ role: 'auth' }, async (client) => {
+      const existing = await client.query(
+        'SELECT 1 FROM users WHERE (lower(email) = $1 OR phone = $2) AND deleted_at IS NULL',
+        [input.email, input.phone],
       );
-    }
+      if (existing.rowCount) return { conflict: true };
 
-    const { token } = generateToken(user);
-
-    await logAudit({ userId: user.id, action: 'REGISTER', resourceType: 'user', resourceId: user.id, details: { role }, req });
-
-    return res.status(201).json({
-      success: true,
-      data: {
-        user: { ...user, password_hash: undefined },
-        token
-      }
-    });
-  } catch (err) {
-    console.error('Register error:', err);
-    return res.status(500).json({ success: false, error: 'Registration failed' });
-  }
-});
-
-/**
- * POST /api/auth/login
- * JWT login
- */
-router.post('/login', async (req, res) => {
-  try {
-    const { email, phone, password } = req.body;
-
-    if (!password || (!email && !phone)) {
-      return res.status(400).json({ success: false, error: 'Email or phone, and password are required' });
-    }
-
-    // Query by email or phone
-    const lookupField = email ? 'email' : 'phone';
-    const lookupValue = email || phone;
-
-    const result = await query(
-      `SELECT id, email, phone, name, role, blood_group, latitude, longitude, city, state, is_verified, is_on_call, ping_radius_km, last_donation_date, next_eligible_date, password_hash, token_version, created_at FROM users WHERE ${lookupField} = $1`,
-      [lookupValue]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(401).json({ success: false, error: 'Invalid credentials' });
-    }
-
-    const user = result.rows[0];
-    const valid = await bcrypt.compare(password, user.password_hash);
-
-    if (!valid) {
-      return res.status(401).json({ success: false, error: 'Invalid credentials' });
-    }
-
-    delete user.password_hash;
-    const { token, jti } = generateToken(user);
-    const expiresAt = parseExpiresInToDate(process.env.JWT_EXPIRES_IN || '7d');
-
-    await logAudit({ userId: user.id, action: 'LOGIN', resourceType: 'user', resourceId: user.id, details: { jti }, req });
-
-    return res.json({
-      success: true,
-      data: { user, token }
-    });
-  } catch (err) {
-    console.error('Login error:', err);
-    return res.status(500).json({ success: false, error: 'Login failed' });
-  }
-});
-
-/**
- * POST /api/auth/google
- * Google Identity Services ID token → existing JWT session
- */
-router.post('/google', async (req, res) => {
-  try {
-    const googleClient = getGoogleClient();
-    if (!googleClient) {
-      return res.status(503).json({
-        success: false,
-        error: 'Google Sign-In not configured. Set GOOGLE_CLIENT_ID on the server.',
-      });
-    }
-
-    const { id_token, consent_given, consent_policy_version } = req.body || {};
-    if (!id_token || typeof id_token !== 'string') {
-      return res.status(400).json({ success: false, error: 'id_token is required' });
-    }
-
-    const ticket = await googleClient.verifyIdToken({
-      idToken: id_token,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
-    const payload = ticket.getPayload();
-    if (!payload?.sub || !payload.email) {
-      return res.status(401).json({ success: false, error: 'Invalid Google token' });
-    }
-
-    const googleSub = payload.sub;
-    const email = payload.email.toLowerCase();
-    const name = sanitize(payload.name || email.split('@')[0]).slice(0, MAX_NAME_LEN) || 'Google User';
-
-    // Prefer google_sub match, then email
-    let result = await query(
-      `SELECT id, email, phone, name, role, blood_group, latitude, longitude, city, state,
-              is_verified, is_on_call, ping_radius_km, last_donation_date, next_eligible_date,
-              token_version, consent_given, google_sub, created_at
-       FROM users WHERE google_sub = $1 OR email = $2
-       ORDER BY CASE WHEN google_sub = $1 THEN 0 ELSE 1 END
-       LIMIT 1`,
-      [googleSub, email]
-    );
-
-    let user;
-    if (result.rows.length > 0) {
-      user = result.rows[0];
-      if (!user.google_sub) {
-        await query(
-          'UPDATE users SET google_sub = $1, updated_at = NOW() WHERE id = $2',
-          [googleSub, user.id]
-        );
-        user.google_sub = googleSub;
-      }
-    } else {
-      if (!consent_given) {
-        return res.status(400).json({
-          success: false,
-          error: 'Consent is required to create an account with Google Sign-In',
-        });
-      }
-      if (consent_policy_version && consent_policy_version !== CURRENT_POLICY_VERSION) {
-        return res.status(409).json({
-          success: false,
-          error: 'The privacy notice has changed. Refresh and review it before continuing.',
-        });
-      }
       const userId = uuidv4();
       const now = new Date();
-      // Opaque password — Google users sign in via Google only
-      const password_hash = await bcrypt.hash(uuidv4() + uuidv4(), 12);
-      const phone = `g_${googleSub.slice(0, 16)}`;
-      const insert = await query(
+      const passwordHash = await bcrypt.hash(input.password, 12);
+      const inserted = await client.query(
         `INSERT INTO users (
-           id, email, phone, password_hash, name, role, is_verified, is_on_call,
-           ping_radius_km, consent_given, consent_given_at, consent_policy_version,
-           consent_source, token_version, google_sub, created_at, updated_at
-         ) VALUES ($1,$2,$3,$4,$5,'donor',false,false,10,true,$6,$7,'google_sign_in',0,$8,$9,$9)
-         RETURNING id, email, phone, name, role, blood_group, latitude, longitude, city, state,
-                   is_verified, is_on_call, ping_radius_km, last_donation_date, next_eligible_date,
-                   token_version, consent_given, consent_given_at, consent_policy_version,
-                   consent_source, google_sub, created_at`,
-        [userId, email, phone, password_hash, name, now, CURRENT_POLICY_VERSION, googleSub, now]
+           id, email, phone, password_hash, name, role, blood_group, date_of_birth,
+           latitude, longitude, city, state, is_verified, is_on_call, ping_radius_km,
+           consent_given, consent_given_at, consent_policy_version, consent_source,
+           token_version, account_status, created_at, updated_at
+         ) VALUES (
+           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,false,$13,$14,
+           true,$15,$16,'registration_form',0,'active',$15,$15
+         ) RETURNING *`,
+        [
+          userId, input.email, input.phone, passwordHash, input.name, input.role,
+          input.blood_group || null, input.date_of_birth || null,
+          input.latitude ?? null, input.longitude ?? null, input.city, input.state,
+          input.role === 'donor' ? false : null,
+          input.role === 'donor' ? 10 : null,
+          now, input.consent_policy_version,
+        ],
       );
-      user = insert.rows[0];
-    }
-
-    const { token, jti } = generateToken(user);
-    await logAudit({
-      userId: user.id,
-      action: 'LOGIN_GOOGLE',
-      resourceType: 'user',
-      resourceId: user.id,
-      details: { jti },
-      req,
+      const user = inserted.rows[0];
+      if (input.role === 'hospital') {
+        await client.query(
+          `INSERT INTO hospitals (
+             id, user_id, name, address, license_number, latitude, longitude,
+             city, state, phone, is_verified, approval_status, created_at, updated_at
+           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,false,'pending',$11,$11)`,
+          [
+            uuidv4(), userId, input.hospital_name, input.address, input.license_number,
+            input.latitude ?? null, input.longitude ?? null, input.city, input.state,
+            input.phone, now,
+          ],
+        );
+      }
+      await logAudit({
+        userId,
+        action: input.role === 'hospital' ? 'HOSPITAL_REGISTERED_PENDING' : 'DONOR_REGISTERED',
+        resourceType: 'user',
+        resourceId: userId,
+        details: { role: input.role },
+        req,
+        client,
+      });
+      if (input.role === 'hospital') return { pending: true };
+      return { user, session: await issueSession(user, client) };
     });
 
-    return res.json({ success: true, data: { user, token } });
-  } catch (err) {
-    console.error('Google auth error:', err);
-    const msg = err?.message?.includes('Wrong number of segments')
-      ? 'Invalid Google token'
-      : 'Google Sign-In failed';
-    return res.status(401).json({ success: false, error: msg });
+    if (result.conflict) return failure(res, 409, 'IDENTITY_ALREADY_EXISTS', 'Email or phone is already registered');
+    if (result.pending) {
+      return res.status(202).json({ success: true, data: { status: 'pending_approval' } });
+    }
+    return res.status(201).json({
+      success: true,
+      data: { user: publicUser(result.user), ...result.session },
+    });
+  } catch (error) {
+    console.error('Registration failed:', error.message);
+    return failure(res, 500, 'REGISTRATION_FAILED', 'Registration failed');
   }
 });
 
-/**
- * POST /api/auth/logout
- * Secure logout — blacklist the token
- */
+router.post('/login', validate(loginSchema), async (req, res) => {
+  const { email, phone, password } = req.body;
+  try {
+    const result = await withAuthorizationContext({ role: 'auth' }, async (client) => {
+      const found = await client.query(
+        `SELECT u.*, h.id AS hospital_id, h.approval_status
+         FROM users u
+         LEFT JOIN hospitals h ON h.user_id = u.id
+         WHERE u.deleted_at IS NULL
+           AND (${email ? 'lower(u.email) = $1' : 'u.phone = $1'})
+         LIMIT 1`,
+        [email || phone],
+      );
+      const user = found.rows[0];
+      if (!user || !await bcrypt.compare(password, user.password_hash)) {
+        await logAudit({
+          action: 'LOGIN_FAILED',
+          resourceType: 'session',
+          details: { category: 'invalid_credentials' },
+          req,
+          client,
+        });
+        return { invalid: true };
+      }
+      if (user.account_status !== 'active') return { inactive: user.account_status };
+      if (user.role === 'hospital' && user.approval_status !== 'approved') {
+        return { hospitalPending: user.approval_status || 'pending' };
+      }
+      const session = await issueSession(user, client);
+      await logAudit({
+        userId: user.id,
+        action: 'LOGIN_SUCCEEDED',
+        resourceType: 'session',
+        resourceId: user.id,
+        details: { method: 'password' },
+        req,
+        client,
+      });
+      return { user, session };
+    });
+    if (result.invalid) return failure(res, 401, 'INVALID_CREDENTIALS', 'Invalid credentials');
+    if (result.inactive) return failure(res, 403, 'ACCOUNT_NOT_ACTIVE', 'Account is not active');
+    if (result.hospitalPending) {
+      return failure(res, 403, 'HOSPITAL_APPROVAL_PENDING', 'Hospital access is pending administrator approval');
+    }
+    return res.json({ success: true, data: { user: publicUser(result.user), ...result.session } });
+  } catch (error) {
+    console.error('Login failed:', error.message);
+    return failure(res, 500, 'LOGIN_FAILED', 'Login failed');
+  }
+});
+
+router.post('/google', validate(googleTokenSchema), async (req, res) => {
+  try {
+    const identity = await verifyGoogleIdentity(req.body.id_token);
+    const result = await withAuthorizationContext({ role: 'auth' }, async (client) => {
+      const matches = await client.query(
+        `SELECT id, email, name, role, token_version, account_status, google_sub
+         FROM users
+         WHERE deleted_at IS NULL AND (google_sub = $1 OR lower(email) = $2)`,
+        [identity.googleSub, identity.email],
+      );
+      const googleMatch = matches.rows.find((row) => row.google_sub === identity.googleSub) || null;
+      const emailMatch = matches.rows.find((row) => row.email.toLowerCase() === identity.email) || null;
+      const decision = decideGoogleFlow({ googleMatch, emailMatch });
+      if (decision.flow === 'session') {
+        const session = await issueSession(googleMatch, client);
+        await logAudit({
+          userId: googleMatch.id,
+          action: 'LOGIN_GOOGLE_SUCCEEDED',
+          resourceType: 'session',
+          resourceId: googleMatch.id,
+          req,
+          client,
+        });
+        return { ...decision, user: googleMatch, session };
+      }
+      if (decision.flow === 'onboarding_required') {
+        const oneTime = createOneTimeToken();
+        await client.query(
+          `INSERT INTO pending_google_registrations
+             (id, token_hash, google_sub, email, display_name, expires_at)
+           VALUES ($1,$2,$3,$4,$5,NOW() + INTERVAL '15 minutes')
+           ON CONFLICT (google_sub) DO UPDATE SET
+             token_hash = EXCLUDED.token_hash, email = EXCLUDED.email,
+             display_name = EXCLUDED.display_name, expires_at = EXCLUDED.expires_at,
+             consumed_at = NULL`,
+          [uuidv4(), oneTime.hash, identity.googleSub, identity.email, identity.name],
+        );
+        return { ...decision, onboarding_token: oneTime.token };
+      }
+      return decision;
+    });
+    if (result.flow === 'privileged_link_denied') {
+      return failure(res, 403, 'PRIVILEGED_GOOGLE_LINK_DENIED', 'This Google flow is for donor accounts only');
+    }
+    if (result.flow === 'link_required') {
+      return failure(res, 409, 'ACCOUNT_LINK_REQUIRED', 'Sign in with your donor password to link Google');
+    }
+    if (result.flow === 'session') {
+      return res.json({ success: true, data: { flow: 'session', user: publicUser(result.user), ...result.session } });
+    }
+    return res.json({ success: true, data: result });
+  } catch (error) {
+    return failure(res, error.status || 401, error.code || 'GOOGLE_SIGN_IN_FAILED', error.message || 'Google Sign-In failed');
+  }
+});
+
+router.post('/google/onboarding', validate(googleOnboardingSchema), async (req, res) => {
+  try {
+    const input = req.body;
+    const result = await withAuthorizationContext({ role: 'auth' }, async (client) => {
+      const pendingResult = await client.query(
+        `SELECT * FROM pending_google_registrations
+         WHERE token_hash = $1 AND consumed_at IS NULL AND expires_at > NOW()
+         FOR UPDATE`,
+        [hashOneTimeToken(input.onboarding_token)],
+      );
+      const pending = pendingResult.rows[0];
+      if (!pending) return { invalid: true };
+      const conflict = await client.query(
+        'SELECT 1 FROM users WHERE (lower(email) = $1 OR phone = $2 OR google_sub = $3) AND deleted_at IS NULL',
+        [pending.email.toLowerCase(), input.phone, pending.google_sub],
+      );
+      if (conflict.rowCount) return { conflict: true };
+      const userId = uuidv4();
+      const opaquePassword = await bcrypt.hash(uuidv4() + uuidv4(), 12);
+      const inserted = await client.query(
+        `INSERT INTO users (
+           id,email,phone,password_hash,name,role,blood_group,date_of_birth,city,state,
+           is_verified,is_on_call,ping_radius_km,consent_given,consent_given_at,
+           consent_policy_version,consent_source,token_version,google_sub,account_status
+         ) VALUES ($1,$2,$3,$4,$5,'donor',$6,$7,$8,$9,false,false,10,true,NOW(),$10,'google_onboarding',0,$11,'active')
+         RETURNING *`,
+        [
+          userId, pending.email.toLowerCase(), input.phone, opaquePassword, pending.display_name,
+          input.blood_group, input.date_of_birth, input.city, input.state,
+          input.consent_policy_version, pending.google_sub,
+        ],
+      );
+      await client.query('UPDATE pending_google_registrations SET consumed_at = NOW() WHERE id = $1', [pending.id]);
+      await logAudit({
+        userId,
+        action: 'GOOGLE_ONBOARDING_COMPLETED',
+        resourceType: 'user',
+        resourceId: userId,
+        req,
+        client,
+      });
+      const user = inserted.rows[0];
+      return { user, session: await issueSession(user, client) };
+    });
+    if (result.invalid) return failure(res, 401, 'ONBOARDING_TOKEN_INVALID', 'Onboarding session expired');
+    if (result.conflict) return failure(res, 409, 'IDENTITY_ALREADY_EXISTS', 'This identity is already registered');
+    return res.status(201).json({ success: true, data: { user: publicUser(result.user), ...result.session } });
+  } catch (error) {
+    console.error('Google onboarding failed:', error.message);
+    return failure(res, 500, 'GOOGLE_ONBOARDING_FAILED', 'Google onboarding failed');
+  }
+});
+
+router.post('/google/link', authenticate, validate(googleLinkSchema), async (req, res) => {
+  if (req.user.role !== 'donor') {
+    return failure(res, 403, 'PRIVILEGED_GOOGLE_LINK_DENIED', 'Only donor accounts can link Google');
+  }
+  try {
+    const identity = await verifyGoogleIdentity(req.body.id_token);
+    if (identity.email !== req.user.email.toLowerCase()) {
+      return failure(res, 409, 'GOOGLE_EMAIL_MISMATCH', 'Google email must match your donor account');
+    }
+    const result = await withAuthorizationContext(
+      { userId: req.user.id, role: 'donor' },
+      async (client) => {
+        const locked = await client.query('SELECT * FROM users WHERE id = $1 FOR UPDATE', [req.user.id]);
+        const user = locked.rows[0];
+        if (!user || !await bcrypt.compare(req.body.password, user.password_hash)) return { invalidPassword: true };
+        const conflict = await client.query(
+          'SELECT 1 FROM users WHERE google_sub = $1 AND id <> $2 AND deleted_at IS NULL',
+          [identity.googleSub, req.user.id],
+        );
+        if (conflict.rowCount) return { conflict: true };
+        await client.query('UPDATE users SET google_sub = $1, updated_at = NOW() WHERE id = $2', [identity.googleSub, req.user.id]);
+        await logAudit({
+          userId: req.user.id,
+          action: 'GOOGLE_ACCOUNT_LINKED',
+          resourceType: 'user',
+          resourceId: req.user.id,
+          req,
+          client,
+        });
+        return { linked: true };
+      },
+    );
+    if (result.invalidPassword) return failure(res, 401, 'RECENT_AUTH_REQUIRED', 'Password confirmation failed');
+    if (result.conflict) return failure(res, 409, 'GOOGLE_IDENTITY_ALREADY_LINKED', 'Google identity is already linked');
+    return res.json({ success: true, data: { linked: true } });
+  } catch (error) {
+    return failure(res, error.status || 500, error.code || 'GOOGLE_LINK_FAILED', error.message || 'Google linking failed');
+  }
+});
+
+router.post('/refresh', async (req, res) => {
+  const refreshToken = req.body?.refresh_token;
+  if (typeof refreshToken !== 'string' || refreshToken.length < 32 || Object.keys(req.body || {}).some((key) => key !== 'refresh_token')) {
+    return failure(res, 400, 'VALIDATION_ERROR', 'A valid refresh token is required');
+  }
+  try {
+    const result = await withAuthorizationContext({ role: 'auth' }, async (client) => {
+      const found = await client.query(
+        `SELECT rt.*, u.id AS account_id, u.role, u.token_version, u.account_status, u.deleted_at,
+                h.id AS hospital_id, h.approval_status
+         FROM refresh_tokens rt
+         JOIN users u ON u.id = rt.user_id
+         LEFT JOIN hospitals h ON h.user_id = u.id
+         WHERE rt.token_hash = $1 FOR UPDATE`,
+        [hashRefreshToken(refreshToken)],
+      );
+      const record = found.rows[0];
+      if (!record || record.revoked_at || record.expires_at <= new Date()) return { invalid: true };
+      if (record.account_status !== 'active' || record.deleted_at ||
+          (record.role === 'hospital' && record.approval_status !== 'approved')) {
+        return { inactive: true };
+      }
+      const nextRefresh = createRefreshToken();
+      const nextId = uuidv4();
+      await client.query(
+        `INSERT INTO refresh_tokens (id,user_id,token_hash,family_id,expires_at)
+         VALUES ($1,$2,$3,$4,NOW() + INTERVAL '30 days')`,
+        [nextId, record.user_id, nextRefresh.hash, record.family_id],
+      );
+      await client.query(
+        'UPDATE refresh_tokens SET revoked_at = NOW(), replaced_by = $1 WHERE id = $2',
+        [nextId, record.id],
+      );
+      const access = issueAccessToken({
+        id: record.account_id,
+        role: record.role,
+        token_version: record.token_version,
+      });
+      return { token: access.token, refresh_token: nextRefresh.token, expires_at: access.expiresAt.toISOString() };
+    });
+    if (result.invalid || result.inactive) return failure(res, 401, 'REFRESH_TOKEN_INVALID', 'Refresh token is invalid');
+    return res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Token refresh failed:', error.message);
+    return failure(res, 500, 'TOKEN_REFRESH_FAILED', 'Token refresh failed');
+  }
+});
+
 router.post('/logout', authenticate, async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    const token = authHeader.slice(7);
-    const decoded = jwt.decode(token);
-    if (decoded?.jti) {
-      const expiresAt = parseExpiresInToDate(process.env.JWT_EXPIRES_IN || '7d');
-      await blacklistToken(decoded.jti, req.user.id, expiresAt);
-    }
-    await logAudit({ userId: req.user.id, action: 'LOGOUT', resourceType: 'user', resourceId: req.user.id, req });
-    return res.json({ success: true, data: { message: 'Logged out successfully' } });
-  } catch (err) {
-    console.error('Logout error:', err);
-    return res.status(500).json({ success: false, error: 'Logout failed' });
+    await withAuthorizationContext(
+      { userId: req.user.id, role: req.user.role, hospitalId: req.user.hospital_id || '' },
+      async (client) => {
+        await client.query(
+          `INSERT INTO token_blacklist (id, token_jti, user_id, expires_at)
+           VALUES ($1,$2,$3,to_timestamp($4))
+           ON CONFLICT (token_jti) DO NOTHING`,
+          [uuidv4(), req.auth.claims.jti, req.user.id, req.auth.claims.exp],
+        );
+        if (typeof req.body?.refresh_token === 'string') {
+          await client.query(
+            'UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = $1 AND token_hash = $2 AND revoked_at IS NULL',
+            [req.user.id, hashRefreshToken(req.body.refresh_token)],
+          );
+        }
+        await logAudit({
+          userId: req.user.id,
+          action: 'LOGOUT_SESSION_REVOKED',
+          resourceType: 'session',
+          resourceId: req.user.id,
+          req,
+          client,
+        });
+      },
+    );
+    disconnectUser(req.user.id);
+    return res.json({ success: true, data: { message: 'Logged out' } });
+  } catch (error) {
+    console.error('Logout failed:', error.message);
+    return failure(res, 503, 'LOGOUT_REVOCATION_FAILED', 'Could not revoke this session');
   }
 });
 
-/**
- * POST /api/auth/consent
- * Record or update user consent for privacy-readiness workflows.
- */
-router.post('/consent', authenticate, async (req, res) => {
-  try {
-    const { consent_given } = req.body;
-    if (typeof consent_given !== 'boolean') {
-      return res.status(400).json({ success: false, error: 'consent_given boolean is required' });
-    }
-    const result = await query(
-      `UPDATE users SET consent_given = $1, consent_given_at = NOW(),
+router.post('/consent', authenticate, validate(consentSchema), async (req, res) => {
+  const result = await query(
+    `UPDATE users SET consent_given = $1, consent_given_at = NOW(),
        consent_policy_version = $2, consent_source = 'account_settings', updated_at = NOW()
-       WHERE id = $3
-       RETURNING id, consent_given, consent_given_at, consent_policy_version, consent_source`,
-      [consent_given, CURRENT_POLICY_VERSION, req.user.id]
-    );
-    await logAudit({ userId: req.user.id, action: consent_given ? 'CONSENT_GIVEN' : 'CONSENT_REVOKED', resourceType: 'user', resourceId: req.user.id, req });
-    return res.json({ success: true, data: { consent: result.rows[0] } });
-  } catch (err) {
-    console.error('Consent error:', err);
-    return res.status(500).json({ success: false, error: 'Failed to update consent' });
-  }
+     WHERE id = $3
+     RETURNING consent_given, consent_given_at, consent_policy_version, consent_source`,
+    [req.body.consent_given, '2026-07-15', req.user.id],
+  );
+  await logAudit({
+    userId: req.user.id,
+    action: req.body.consent_given ? 'CONSENT_GIVEN' : 'CONSENT_WITHDRAWN',
+    resourceType: 'user',
+    resourceId: req.user.id,
+    req,
+  });
+  return res.json({ success: true, data: { consent: result.rows[0] } });
 });
 
-/**
- * GET /api/auth/export
- * Export data scoped to the authenticated account.
- */
-router.get('/export', authenticate, async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const [userResult, hospitalResult] = await Promise.all([
-      query(
-        `SELECT id, email, phone, name, role, blood_group, latitude, longitude, city, state,
-                is_verified, is_on_call, ping_radius_km, last_donation_date, next_eligible_date,
-                consent_given, consent_given_at, consent_policy_version, consent_source,
-                created_at, updated_at
-         FROM users WHERE id = $1`,
-        [userId]
-      ),
-      query(
-        `SELECT id, name, address, license_number, latitude, longitude, city, state,
-                phone, is_verified, operating_hours, created_at
-         FROM hospitals WHERE user_id = $1`,
-        [userId]
-      ),
-    ]);
-
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'User not found' });
-    }
-
-    const hospital = hospitalResult.rows[0] || null;
-    const [
-      donationsResult,
-      responsesResult,
-      creditsResult,
-      familyResult,
-      notificationsResult,
-      requestsResult,
-    ] = await Promise.all([
-      query(
-        `SELECT id, request_id, hospital_id, units, blood_group, verified_at,
-                credits_earned, ref_code, created_at
-         FROM donations WHERE donor_id = $1 ORDER BY created_at DESC`,
-        [userId]
-      ),
-      query(
-        `SELECT id, request_id, status, responded_at, arrived_at, completed_at, created_at
-         FROM donor_responses WHERE donor_id = $1 ORDER BY created_at DESC`,
-        [userId]
-      ),
-      query(
-        `SELECT id, amount, type, description, related_donation_id, created_at
-         FROM credits WHERE donor_id = $1 ORDER BY created_at DESC`,
-        [userId]
-      ),
-      query(
-        `SELECT id, name, relationship, blood_group, created_at
-         FROM family_members WHERE donor_id = $1 ORDER BY created_at DESC`,
-        [userId]
-      ),
-      query(
-        `SELECT id, type, title, body, data, is_read, created_at
-         FROM notifications WHERE user_id = $1 ORDER BY created_at DESC`,
-        [userId]
-      ),
-      hospital
-        ? query(
-            `SELECT id, blood_group, units_needed, urgency, status, radius_km,
-                    latitude, longitude, notes, ref_code, needed_by, filled_at, created_at
-             FROM blood_requests WHERE hospital_id = $1 ORDER BY created_at DESC`,
-            [hospital.id]
-          )
-        : Promise.resolve({ rows: [] }),
-    ]);
-
-    const exportData = buildAccountExport({
-      user: userResult.rows[0],
-      hospital,
-      bloodRequests: requestsResult.rows,
-      donations: donationsResult.rows,
-      responses: responsesResult.rows,
-      credits: creditsResult.rows,
-      familyMembers: familyResult.rows,
-      notifications: notificationsResult.rows,
-    });
-
-    await logAudit({
-      userId,
-      action: 'ACCOUNT_DATA_EXPORTED',
-      resourceType: 'user',
-      resourceId: userId,
-      req,
-    });
-
-    res.setHeader('Cache-Control', 'no-store');
-    return res.json({ success: true, data: exportData });
-  } catch (err) {
-    console.error('Account export error:', err.message);
-    return res.status(500).json({ success: false, error: 'Failed to export account data' });
-  }
-});
-
-/**
- * GET /api/auth/me
- * Current user profile
- */
 router.get('/me', authenticate, async (req, res) => {
-  try {
-    const result = await query(
-      `SELECT id, email, phone, name, role, blood_group, latitude, longitude, city, state,
-              is_verified, is_on_call, ping_radius_km, last_donation_date, next_eligible_date,
-              consent_given, consent_given_at, consent_policy_version, consent_source,
-              created_at, updated_at
-       FROM users WHERE id = $1`,
-      [req.user.id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'User not found' });
-    }
-
-    const user = result.rows[0];
-
-    // If hospital, include hospital info
-    if (user.role === 'hospital') {
-      const hospResult = await query('SELECT id, name, address, license_number, latitude, longitude, city, state, phone, is_verified FROM hospitals WHERE user_id = $1', [user.id]);
-      if (hospResult.rows.length > 0) {
-        user.hospital = hospResult.rows[0];
-      }
-    }
-
-    return res.json({ success: true, data: { user } });
-  } catch (err) {
-    console.error('Me error:', err);
-    return res.status(500).json({ success: false, error: 'Failed to fetch profile' });
-  }
+  const result = await query(
+    `SELECT u.id,u.email,u.phone,u.name,u.role,u.blood_group,u.date_of_birth,u.latitude,u.longitude,
+            u.city,u.state,u.is_verified,u.is_on_call,u.ping_radius_km,u.last_donation_date,
+            u.next_eligible_date,u.consent_given,u.consent_given_at,u.consent_policy_version,
+            u.account_status,u.created_at,u.updated_at,h.id AS hospital_id,h.name AS hospital_name,
+            h.approval_status
+     FROM users u LEFT JOIN hospitals h ON h.user_id = u.id WHERE u.id = $1`,
+    [req.user.id],
+  );
+  return res.json({ success: true, data: { user: result.rows[0] } });
 });
 
-/**
- * DELETE /api/auth/me
- * Right to Erasure — DPDP Act India compliance
- * Soft-deletes user account and anonymizes PII
- */
+async function readAll(execute, sql, params) {
+  const pageSize = 250;
+  const rows = [];
+  let offset = 0;
+  for (;;) {
+    const result = await execute(`${sql} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, pageSize, offset]);
+    rows.push(...result.rows);
+    if (result.rowCount < pageSize) return rows;
+    offset += pageSize;
+  }
+}
+
+router.get('/export', authenticate, async (req, res) => {
+  const execute = query;
+  const [user, hospitalResult] = await Promise.all([
+    query(`SELECT id,email,phone,name,role,blood_group,date_of_birth,latitude,longitude,city,state,
+                  is_verified,is_on_call,ping_radius_km,last_donation_date,next_eligible_date,
+                  consent_given,consent_given_at,consent_policy_version,consent_source,created_at,updated_at
+           FROM users WHERE id = $1`, [req.user.id]),
+    query('SELECT * FROM hospitals WHERE user_id = $1', [req.user.id]),
+  ]);
+  const hospital = hospitalResult.rows[0] || null;
+  const [donations, responses, credits, familyMembers, notifications, bloodRequests] = await Promise.all([
+    readAll(execute, 'SELECT * FROM donations WHERE donor_id = $1 ORDER BY created_at DESC,id DESC', [req.user.id]),
+    readAll(execute, 'SELECT * FROM donor_responses WHERE donor_id = $1 ORDER BY created_at DESC,id DESC', [req.user.id]),
+    readAll(execute, 'SELECT * FROM credits WHERE donor_id = $1 ORDER BY created_at DESC,id DESC', [req.user.id]),
+    readAll(execute, 'SELECT * FROM family_members WHERE donor_id = $1 ORDER BY created_at DESC,id DESC', [req.user.id]),
+    readAll(execute, 'SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC,id DESC', [req.user.id]),
+    hospital ? readAll(execute, 'SELECT * FROM blood_requests WHERE hospital_id = $1 ORDER BY created_at DESC,id DESC', [hospital.id]) : [],
+  ]);
+  await logAudit({
+    userId: req.user.id,
+    action: 'ACCOUNT_DATA_EXPORTED',
+    resourceType: 'user',
+    resourceId: req.user.id,
+    req,
+  });
+  res.setHeader('Cache-Control', 'no-store');
+  return res.json({
+    success: true,
+    data: buildAccountExport({
+      user: user.rows[0], hospital, donations, responses, credits,
+      familyMembers, notifications, bloodRequests,
+    }),
+  });
+});
+
 router.delete('/me', authenticate, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const anonymizedEmail = `deleted_${userId}@anonymized.local`;
-    const anonymizedPhone = `deleted_${userId.slice(0, 12)}`;
-    const anonymizedName = 'Deleted User';
-
-    await Promise.all([
-      query('DELETE FROM push_subscriptions WHERE user_id = $1', [userId]),
-      query('DELETE FROM family_members WHERE donor_id = $1', [userId]),
-      query('DELETE FROM notifications WHERE user_id = $1', [userId]),
-    ]);
-
-    // Anonymize the account while retaining referential integrity.
-    await query(
-      `UPDATE users SET
-        email = $1, phone = $2, name = $3, password_hash = $4,
-        is_on_call = false, is_verified = false, consent_given = false,
-        latitude = NULL, longitude = NULL, blood_group = NULL,
-        google_sub = NULL, consent_given_at = NULL, consent_policy_version = NULL,
-        consent_source = 'account_deletion',
-        updated_at = NOW(), deleted_at = NOW()
-       WHERE id = $5`,
-      [anonymizedEmail, anonymizedPhone, anonymizedName, '[DELETED]', userId]
+    await withAuthorizationContext(
+      { userId: req.user.id, role: req.user.role, hospitalId: req.user.hospital_id || '' },
+      async (client) => {
+        await client.query('DELETE FROM push_subscriptions WHERE user_id = $1', [req.user.id]);
+        await client.query('DELETE FROM refresh_tokens WHERE user_id = $1', [req.user.id]);
+        await client.query('DELETE FROM family_members WHERE donor_id = $1', [req.user.id]);
+        await client.query('DELETE FROM notifications WHERE user_id = $1', [req.user.id]);
+        await client.query(
+          `UPDATE users SET
+             email=$1, phone=$2, name='Deleted User', password_hash='[DELETED]',
+             is_on_call=false, is_verified=false, consent_given=false,
+             latitude=NULL, longitude=NULL, blood_group=NULL, google_sub=NULL,
+             account_status='deleted', token_version=token_version+1,
+             consent_given_at=NULL, consent_policy_version=NULL,
+             consent_source='account_deletion', deleted_at=NOW(), updated_at=NOW()
+           WHERE id=$3`,
+          [`deleted_${req.user.id}@anonymized.invalid`, `deleted_${req.user.id.slice(0, 12)}`, req.user.id],
+        );
+        await logAudit({
+          userId: req.user.id,
+          action: 'ACCOUNT_DELETED',
+          resourceType: 'user',
+          resourceId: req.user.id,
+          req,
+          client,
+        });
+      },
     );
-
-    // Blacklist all tokens for this user
-    await query(
-      'UPDATE users SET token_version = token_version + 1 WHERE id = $1',
-      [userId]
-    );
-
-    await logAudit({ userId, action: 'ACCOUNT_DELETED', resourceType: 'user', resourceId: userId, details: { reason: 'User-requested account deletion' }, req });
-
-    return res.json({ success: true, data: { message: 'Account deleted and direct profile identifiers anonymized.' } });
-  } catch (err) {
-    console.error('Delete account error:', err);
-    return res.status(500).json({ success: false, error: 'Failed to delete account' });
+    disconnectUser(req.user.id);
+    return res.json({ success: true, data: { message: 'Account identifiers were anonymized' } });
+  } catch (error) {
+    console.error('Account deletion failed:', error.message);
+    return failure(res, 500, 'ACCOUNT_DELETION_FAILED', 'Account deletion failed');
   }
+});
+
+router.get('/policy-version', (req, res) => {
+  res.json({ success: true, data: { version: '2026-07-15' } });
+});
+
+router.use((error, req, res, next) => {
+  if (res.headersSent) return next(error);
+  return failure(res, error.status || 500, error.code || 'AUTH_ERROR', error.message || 'Authentication operation failed');
 });
 
 export default router;
-

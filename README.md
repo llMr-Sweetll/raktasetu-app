@@ -25,15 +25,6 @@ Donor sign-in: `/#/login` · Hospital sign-in (discreet): `/#/login?role=hospita
 | Privacy / DPO | privacy@raktasetu.org |
 | Org | RaktaSetu Trust, Bengaluru, Karnataka |
 
-## Demo Credentials
-
-| Role | Phone / Email | Password |
-|------|--------------|----------|
-| Donor | `+919876543210` | `password123` |
-| Donor | `+919876543211` | `password123` |
-| Hospital | `+918312456789` | `password123` |
-| Admin | `admin@raktasetu.in` | `password123` |
-
 ## Features
 
 ### Public
@@ -99,7 +90,7 @@ railway variables set \
 
 Donors can enable push from **Profile**. Local notification testing works without VAPID.
 
-Schema patches for `google_sub` and `push_subscriptions` run automatically on API boot (also in `backend/db/migrations/2026-07-15-google-push.sql`).
+Database migrations are applied explicitly with the migration owner credential. Application startup never mutates schema or creates users.
 
 ### Local development
 
@@ -114,6 +105,9 @@ npm install && npm run dev
 ```
 
 Same-origin production builds leave `VITE_API_URL` empty so the browser calls `/api` on the Railway host.
+
+Local and staging fixtures must be created with the test fixture script. It refuses to run when
+`NODE_ENV=production`; production identities are provisioned through registration and admin approval only.
 
 ## Docs
 

@@ -35,10 +35,8 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [googleConsent, setGoogleConsent] = useState(false);
   const [googleReady, setGoogleReady] = useState(false);
   const googleBtnRef = useRef(null);
-  const consentRef = useRef(false);
   const loginGoogleRef = useRef(loginWithGoogle);
   const navigateRef = useRef(navigate);
 
@@ -49,9 +47,11 @@ export default function Login() {
       : 'Sign in to review compatible blood requests near you.',
     path: '/login',
   });
-  consentRef.current = googleConsent;
-  loginGoogleRef.current = loginWithGoogle;
-  navigateRef.current = navigate;
+
+  useEffect(() => {
+    loginGoogleRef.current = loginWithGoogle;
+    navigateRef.current = navigate;
+  }, [loginWithGoogle, navigate]);
 
   // Google only on donor login
   useEffect(() => {
@@ -67,17 +67,15 @@ export default function Login() {
         window.google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
           callback: async (response) => {
-            if (!consentRef.current) {
-              setError('Please accept the privacy consent to continue with Google.');
-              return;
-            }
             setError('');
             setLoading(true);
             try {
-              const user = await loginGoogleRef.current(response.credential, true);
-              navigateRef.current(roleHome(user));
-            } catch (err) {
-              setError(err.response?.data?.error || err.message || 'Google Sign-In failed');
+              const result = await loginGoogleRef.current(response.credential);
+              if (result.flow === 'session') navigateRef.current(roleHome(result.user));
+              if (result.flow === 'onboarding_required') navigateRef.current('/google-onboarding');
+              if (result.flow === 'link_required') navigateRef.current('/account-link');
+            } catch (_err) {
+              setError(_err.response?.data?.error?.message || _err.message || 'Google Sign-In failed');
             } finally {
               setLoading(false);
             }
@@ -110,8 +108,8 @@ export default function Login() {
       const user = await login(phone, password);
       // Destination comes from the actual role. Ignore query redirects.
       navigate(roleHome(user));
-    } catch (err) {
-      setError(err.response?.data?.error || 'Login failed. Please try again.');
+    } catch (_err) {
+      setError(_err.response?.data?.error?.message || _err.response?.data?.error || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -260,40 +258,18 @@ export default function Login() {
                 <span style={{ fontFamily: body, fontSize: 12, color: '#6F6963' }}>or</span>
                 <div style={{ flex: 1, height: 1, background: 'rgba(242,232,230,0.15)' }} />
               </div>
-              <label style={{
-                display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 12,
-                fontFamily: body, fontSize: 13, color: '#A89B96', cursor: 'pointer',
-                minHeight: 44,
-              }}>
-                <input
-                  type="checkbox"
-                  checked={googleConsent}
-                  onChange={(e) => setGoogleConsent(e.target.checked)}
-                  style={{ marginTop: 4, width: 18, height: 18, flexShrink: 0 }}
-                />
-                <span>
-                  I have read the <Link to="/privacy" style={{ color: '#F2E8E6' }}>Privacy Policy</Link> and
-                  consent to RaktaSetu using my Google name and email to create or access a donor account.
-                  Google Identity Services loads on this page.
-                </span>
-              </label>
+              <p style={{ fontFamily: body, fontSize: 12, color: '#A89B96', lineHeight: 1.5, margin: '0 0 12px', textAlign: 'center' }}>
+                Existing linked donors sign in directly. New donors review consent and complete their profile before an account is created.
+              </p>
               <div
                 ref={googleBtnRef}
                 style={{
                   display: 'flex', justifyContent: 'center',
-                  opacity: googleConsent ? 1 : 0.45,
-                  pointerEvents: googleConsent ? 'auto' : 'none',
                   minHeight: 44,
                 }}
               />
             </div>
           ) : null}
-
-          <p style={{ fontFamily: body, fontSize: 12, color: '#6F6963', textAlign: 'center', marginTop: 18, lineHeight: 1.45 }}>
-            {isHospital
-              ? 'Demo: +918312456789 / password123'
-              : 'Demo: +919876543210 / password123'}
-          </p>
 
           <p style={{ fontFamily: body, fontSize: 13, color: '#A89B96', textAlign: 'center', marginTop: 14 }}>
             New here?{' '}
