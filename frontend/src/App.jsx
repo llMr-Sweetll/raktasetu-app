@@ -7,7 +7,8 @@ import { API_URL, APP_VERSION } from './config.js';
 
 console.log('[RaktaSetu] Version:', APP_VERSION, 'API:', API_URL);
 
-/* Auth */
+/* Auth / public */
+import Landing from './screens/Landing.jsx';
 import Login from './screens/Login.jsx';
 import Register from './screens/Register.jsx';
 import PrivacyPolicy from './screens/PrivacyPolicy.jsx';
@@ -29,30 +30,53 @@ import ConsoleVerify from './screens/ConsoleVerify.jsx';
 /* Admin */
 import AdminDashboard from './screens/AdminDashboard.jsx';
 
+const PUBLIC_PATHS = new Set(['/', '/login', '/register', '/privacy']);
+
+function roleHome(user) {
+  if (!user) return '/login';
+  if (user.role === 'hospital') return '/console';
+  if (user.role === 'admin') return '/admin';
+  return '/home';
+}
+
 function App() {
   const { user, loading } = useAuth();
   const location = useLocation();
   const isAdmin = location.pathname.startsWith('/admin');
+  const isPublic = PUBLIC_PATHS.has(location.pathname);
+  const isFullBleed = location.pathname === '/' || location.pathname === '/login';
 
-  if (loading) return (
-    <div style={{
-      display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh',
-      fontFamily: "'Public Sans', 'Segoe UI', system-ui, sans-serif", color: T.mut,
-    }}>
-      Loading RaktaSetu...
-    </div>
-  );
+  // Only block protected routes while session is resolving — never the landing.
+  if (loading && !isPublic) {
+    return (
+      <div style={{
+        display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh',
+        fontFamily: "'Public Sans', 'Segoe UI', system-ui, sans-serif", color: T.mut,
+        background: T.porcelain,
+      }}>
+        Loading RaktaSetu...
+      </div>
+    );
+  }
 
   return (
     <div style={{
       fontFamily: "'Public Sans', 'Segoe UI', system-ui, sans-serif",
-      background: T.porcelain, minHeight: '100vh', color: T.ink,
+      background: isFullBleed ? '#0A0506' : T.porcelain,
+      minHeight: '100vh',
+      color: T.ink,
     }}>
-      <div style={{ maxWidth: isAdmin ? '100%' : 430, margin: '0 auto', minHeight: '100vh', position: 'relative' }}>
+      <div style={{
+        maxWidth: isAdmin || isFullBleed ? '100%' : 430,
+        margin: '0 auto',
+        minHeight: '100vh',
+        position: 'relative',
+      }}>
         <Routes>
           {/* Public routes */}
-          <Route path="/login" element={user ? <Navigate to={user.role === 'hospital' ? '/console' : user.role === 'admin' ? '/admin' : '/home'} /> : <Login />} />
-          <Route path="/register" element={user ? <Navigate to={user.role === 'hospital' ? '/console' : user.role === 'admin' ? '/admin' : '/home'} /> : <Register />} />
+          <Route path="/" element={user ? <Navigate to={roleHome(user)} replace /> : <Landing />} />
+          <Route path="/login" element={user ? <Navigate to={roleHome(user)} replace /> : <Login />} />
+          <Route path="/register" element={user ? <Navigate to={roleHome(user)} replace /> : <Register />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
 
           {/* Donor routes */}
@@ -116,9 +140,7 @@ function App() {
             </ProtectedRoute>
           } />
 
-          {/* Root redirect */}
-          <Route path="/" element={<Navigate to={user ? (user.role === 'hospital' ? '/console' : user.role === 'admin' ? '/admin' : '/home') : '/login'} />} />
-          <Route path="*" element={<Navigate to={user ? (user.role === 'hospital' ? '/console' : user.role === 'admin' ? '/admin' : '/home') : '/login'} />} />
+          <Route path="*" element={<Navigate to={user ? roleHome(user) : '/'} replace />} />
         </Routes>
       </div>
     </div>
