@@ -1,7 +1,7 @@
 providers = []
 
 [phases.setup]
-nixPkgs = ["nodejs_20"]
+nixPkgs = ["nodejs_22"]
 
 [phases.install]
 cmds = ["echo 'deps install deferred to build'"]
@@ -9,7 +9,7 @@ cmds = ["echo 'deps install deferred to build'"]
 [phases.build]
 cmds = [
   "cd backend && npm ci --omit=dev",
-  "cd frontend && npm ci --include=dev && npx vite build"
+  "cd frontend && npm install --include=dev && npx vite build"
 ]
 
 [start]
