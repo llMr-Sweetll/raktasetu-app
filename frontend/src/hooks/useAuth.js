@@ -48,6 +48,18 @@ function useAuthState() {
     return nextUser;
   };
 
+  const loginWithGoogle = async (idToken, consentGiven = false) => {
+    const { data } = await api.post('/auth/google', {
+      id_token: idToken,
+      consent_given: consentGiven,
+    });
+    const token = data.data?.token || data.token;
+    const nextUser = data.data?.user || data.user;
+    localStorage.setItem('token', token);
+    setUser(nextUser);
+    return nextUser;
+  };
+
   const register = async (payload) => {
     const { data } = await api.post('/auth/register', payload);
     const token = data.data?.token || data.token;
@@ -66,7 +78,7 @@ function useAuthState() {
     setUser((u) => (u ? { ...u, ...patch } : u));
   };
 
-  return { user, loading, login, register, logout, updateUser, refetch: fetchUser };
+  return { user, loading, login, loginWithGoogle, register, logout, updateUser, refetch: fetchUser };
 }
 
 export function AuthProvider({ children }) {

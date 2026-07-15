@@ -27,7 +27,9 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at timestamptz DEFAULT now(),
   consent_given boolean NOT NULL DEFAULT false,
   consent_given_at timestamptz,
-  token_version integer NOT NULL DEFAULT 0
+  token_version integer NOT NULL DEFAULT 0,
+  google_sub varchar UNIQUE,
+  deleted_at timestamptz
 );
 
 CREATE TABLE IF NOT EXISTS hospitals (
@@ -137,3 +139,15 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   user_agent text,
   created_at timestamptz DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  endpoint text NOT NULL UNIQUE,
+  p256dh text NOT NULL,
+  auth text NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user ON push_subscriptions(user_id);

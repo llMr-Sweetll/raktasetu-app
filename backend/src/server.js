@@ -17,6 +17,7 @@ import authRoutes from './routes/auth.js';
 import donorRoutes from './routes/donor.js';
 import hospitalRoutes from './routes/hospital.js';
 import adminRoutes from './routes/admin.js';
+import pushRoutes from './routes/push.js';
 
 dotenv.config();
 
@@ -135,6 +136,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/donor', donorRoutes);
 app.use('/api/hospital', hospitalRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/push', pushRoutes);
 
 /**
  * Health check — CI/CD endpoint
@@ -144,7 +146,7 @@ app.get('/api/health', (req, res) => {
     success: true,
     data: {
       status: 'healthy',
-      version: '1.0.3',
+      version: '1.1.0',
       timestamp: new Date().toISOString()
     }
   });
@@ -613,6 +615,30 @@ async function seedData() {
 }
 
 /**
+ * Lightweight schema patches (idempotent) — Google OAuth + push
+ */
+async function ensureMigrations() {
+  try {
+    await query('ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub varchar UNIQUE');
+    await query('ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at timestamptz');
+    await query(`
+      CREATE TABLE IF NOT EXISTS push_subscriptions (
+        id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+        user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        endpoint text NOT NULL UNIQUE,
+        p256dh text NOT NULL,
+        auth text NOT NULL,
+        created_at timestamptz DEFAULT now(),
+        updated_at timestamptz DEFAULT now()
+      )`);
+    await query('CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user ON push_subscriptions(user_id)');
+    console.log('Schema patches OK (google_sub, push_subscriptions)');
+  } catch (err) {
+    console.error('Schema patch warning:', err.message);
+  }
+}
+
+/**
  * =======================
  *  Start Server
  * =======================
@@ -621,6 +647,7 @@ const PORT = process.env.PORT || 3001;
 
 server.listen(PORT, async () => {
   console.log(`RaktaSetu API running on port ${PORT}`);
+  await ensureMigrations();
   await seedData();
 });
 

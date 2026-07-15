@@ -2,11 +2,19 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
+import { OAuth2Client } from 'google-auth-library';
 import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
 import { logAudit, validatePassword, blacklistToken } from '../utils/compliance.js';
 
 const router = express.Router();
+
+// Lazy — dotenv may load after this module is imported
+function getGoogleClient() {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  if (!clientId) return null;
+  return new OAuth2Client(clientId);
+}
 
 /* ─── Validation helpers ─── */
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -179,6 +187,104 @@ router.post('/login', async (req, res) => {
   } catch (err) {
     console.error('Login error:', err);
     return res.status(500).json({ success: false, error: 'Login failed' });
+  }
+});
+
+/**
+ * POST /api/auth/google
+ * Google Identity Services ID token → existing JWT session
+ */
+router.post('/google', async (req, res) => {
+  try {
+    const googleClient = getGoogleClient();
+    if (!googleClient) {
+      return res.status(503).json({
+        success: false,
+        error: 'Google Sign-In not configured. Set GOOGLE_CLIENT_ID on the server.',
+      });
+    }
+
+    const { id_token, consent_given } = req.body || {};
+    if (!id_token || typeof id_token !== 'string') {
+      return res.status(400).json({ success: false, error: 'id_token is required' });
+    }
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: id_token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    if (!payload?.sub || !payload.email) {
+      return res.status(401).json({ success: false, error: 'Invalid Google token' });
+    }
+
+    const googleSub = payload.sub;
+    const email = payload.email.toLowerCase();
+    const name = sanitize(payload.name || email.split('@')[0]).slice(0, MAX_NAME_LEN) || 'Google User';
+
+    // Prefer google_sub match, then email
+    let result = await query(
+      `SELECT id, email, phone, name, role, blood_group, latitude, longitude, city, state,
+              is_verified, is_on_call, ping_radius_km, last_donation_date, next_eligible_date,
+              token_version, consent_given, google_sub, created_at
+       FROM users WHERE google_sub = $1 OR email = $2
+       ORDER BY CASE WHEN google_sub = $1 THEN 0 ELSE 1 END
+       LIMIT 1`,
+      [googleSub, email]
+    );
+
+    let user;
+    if (result.rows.length > 0) {
+      user = result.rows[0];
+      if (!user.google_sub) {
+        await query(
+          'UPDATE users SET google_sub = $1, updated_at = NOW() WHERE id = $2',
+          [googleSub, user.id]
+        );
+        user.google_sub = googleSub;
+      }
+    } else {
+      if (!consent_given) {
+        return res.status(400).json({
+          success: false,
+          error: 'Consent is required to create an account with Google Sign-In',
+        });
+      }
+      const userId = uuidv4();
+      const now = new Date();
+      // Opaque password — Google users sign in via Google only
+      const password_hash = await bcrypt.hash(uuidv4() + uuidv4(), 12);
+      const phone = `g_${googleSub.slice(0, 16)}`;
+      const insert = await query(
+        `INSERT INTO users (
+           id, email, phone, password_hash, name, role, is_verified, is_on_call,
+           ping_radius_km, consent_given, consent_given_at, token_version, google_sub, created_at, updated_at
+         ) VALUES ($1,$2,$3,$4,$5,'donor',false,false,10,true,$6,0,$7,$8,$8)
+         RETURNING id, email, phone, name, role, blood_group, latitude, longitude, city, state,
+                   is_verified, is_on_call, ping_radius_km, last_donation_date, next_eligible_date,
+                   token_version, consent_given, google_sub, created_at`,
+        [userId, email, phone, password_hash, name, now, googleSub, now]
+      );
+      user = insert.rows[0];
+    }
+
+    const { token, jti } = generateToken(user);
+    await logAudit({
+      userId: user.id,
+      action: 'LOGIN_GOOGLE',
+      resourceType: 'user',
+      resourceId: user.id,
+      details: { jti },
+      req,
+    });
+
+    return res.json({ success: true, data: { user, token } });
+  } catch (err) {
+    console.error('Google auth error:', err);
+    const msg = err?.message?.includes('Wrong number of segments')
+      ? 'Invalid Google token'
+      : 'Google Sign-In failed';
+    return res.status(401).json({ success: false, error: msg });
   }
 });
 
