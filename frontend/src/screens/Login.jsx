@@ -19,7 +19,7 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!phone || !password) { setError('Please enter phone and password'); return; }
+    if (!phone || !password) { setError('Please enter phone/email and password'); return; }
     setLoading(true);
     try {
       const user = await login(phone, password);
@@ -51,7 +51,8 @@ export default function Login() {
           <div style={{ position: 'relative', marginBottom: 12 }}>
             <Phone size={16} color={T.faint} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
             <input
-              type="tel" placeholder="Phone number" value={phone} onChange={(e) => setPhone(e.target.value)}
+              type="text" placeholder="Phone or email" value={phone} onChange={(e) => setPhone(e.target.value)}
+              autoComplete="username"
               style={{ width: '100%', padding: '13px 14px 13px 40px', borderRadius: 12, border: `1px solid ${T.line}`, fontFamily: body, fontSize: 15, background: T.card }}
             />
           </div>

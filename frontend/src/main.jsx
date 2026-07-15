@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { HashRouter } from 'react-router-dom'
 import App from './App.jsx'
+import { AuthProvider } from './hooks/useAuth.js'
 import './index.css'
 
 try {
@@ -13,7 +14,9 @@ try {
   ReactDOM.createRoot(root).render(
     <React.StrictMode>
       <HashRouter>
-        <App />
+        <AuthProvider>
+          <App />
+        </AuthProvider>
       </HashRouter>
     </React.StrictMode>,
   )
