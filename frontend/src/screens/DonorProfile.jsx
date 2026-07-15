@@ -124,7 +124,7 @@ export default function DonorProfile() {
       </Card>
 
       <div style={{ marginTop: 20, textAlign: 'center' }}>
-        <button onClick={logout} style={{ fontFamily: body, fontSize: 13, color: T.arterial, background: 'none', border: 'none', cursor: 'pointer' }}>
+        <button onClick={() => { logout(); navigate('/login'); }} style={{ fontFamily: body, fontSize: 13, color: T.arterial, background: 'none', border: 'none', cursor: 'pointer' }}>
           Sign out
         </button>
       </div>

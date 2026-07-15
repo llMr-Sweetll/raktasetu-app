@@ -123,7 +123,7 @@ export default function Console() {
           )}
 
           <div style={{ marginTop: 16, textAlign: 'center' }}>
-            <button onClick={logout} style={{ fontFamily: body, fontSize: 13, color: '#E4506B', background: 'none', border: 'none', cursor: 'pointer' }}>
+            <button onClick={() => { logout(); navigate('/login'); }} style={{ fontFamily: body, fontSize: 13, color: '#E4506B', background: 'none', border: 'none', cursor: 'pointer' }}>
               Sign out
             </button>
           </div>

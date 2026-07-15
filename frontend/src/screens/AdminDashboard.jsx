@@ -64,7 +64,7 @@ export default function AdminDashboard() {
           </button>
           <h1 style={{ fontFamily: display, fontWeight: 800, fontSize: 22, margin: 0, color: '#F0EEE9' }}>Admin Console</h1>
         </div>
-        <button onClick={logout} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#E4506B', display: 'flex', alignItems: 'center', gap: 6, fontFamily: body, fontSize: 13 }}>
+        <button onClick={() => { logout(); navigate('/login'); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#E4506B', display: 'flex', alignItems: 'center', gap: 6, fontFamily: body, fontSize: 13 }}>
           <LogOut size={16} /> Sign out
         </button>
       </div>
