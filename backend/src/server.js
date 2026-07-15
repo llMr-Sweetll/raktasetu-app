@@ -77,10 +77,10 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10kb' }));
 
-// Rate limiting — API only (SPA assets must not share the 100/15m budget)
+// Rate limiting — API only (SPA assets must not share the budget)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: 400,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => req.ip || req.connection.remoteAddress || 'unknown',
@@ -88,10 +88,10 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Stricter limit for auth endpoints
+// Stricter limit for auth endpoints (still high enough for MVP demo role-switching)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 60,
   keyGenerator: (req) => req.ip || req.connection.remoteAddress || 'unknown'
 });
 app.use('/api/auth/', authLimiter);
