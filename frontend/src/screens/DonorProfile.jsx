@@ -6,6 +6,12 @@ import Card from '../components/Card.jsx';
 import BottomNav from '../components/BottomNav.jsx';
 import api from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
+import {
+  enablePushNotifications,
+  showLocalNotification,
+  testServerPush,
+  notificationsSupported,
+} from '../lib/notifications.js';
 
 const body = "'Public Sans', 'Segoe UI', system-ui, sans-serif";
 const display = "'Anek Latin', 'Segoe UI', system-ui, sans-serif";
@@ -16,6 +22,8 @@ export default function DonorProfile() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [radius, setRadius] = useState(user?.ping_radius_km || 10);
+  const [notifMsg, setNotifMsg] = useState('');
+  const [notifBusy, setNotifBusy] = useState(false);
 
   useEffect(() => {
     fetchHistory();
@@ -91,6 +99,95 @@ export default function DonorProfile() {
           <p style={{ fontFamily: display, fontWeight: 700, fontSize: 13.5, margin: 0, color: T.ink }}>Language</p>
           <p style={{ fontFamily: body, fontSize: 12, color: T.faint, margin: '2px 0 0' }}>English · ಕನ್ನಡ available</p>
         </div>
+      </Card>
+
+      <Card style={{ marginTop: 10, padding: 13 }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 10 }}>
+          <Bell size={17} color={T.oxblood} />
+          <div>
+            <p style={{ fontFamily: display, fontWeight: 700, fontSize: 13.5, margin: 0, color: T.ink }}>Notifications</p>
+            <p style={{ fontFamily: body, fontSize: 12, color: T.faint, margin: '2px 0 0' }}>
+              Local alerts always; push when VAPID is configured
+            </p>
+          </div>
+        </div>
+        {notificationsSupported() ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <button
+              type="button"
+              disabled={notifBusy}
+              onClick={async () => {
+                setNotifBusy(true);
+                setNotifMsg('');
+                try {
+                  await showLocalNotification('RaktaSetu', 'Local notification works — you can receive alerts on this device.');
+                  setNotifMsg('Local notification sent.');
+                } catch (e) {
+                  setNotifMsg(e.message || 'Failed');
+                } finally {
+                  setNotifBusy(false);
+                }
+              }}
+              style={{
+                fontFamily: display, fontWeight: 700, fontSize: 12.5, padding: '10px 0', borderRadius: 10,
+                background: T.card, color: T.ink, border: `1px solid ${T.line}`, cursor: 'pointer',
+              }}
+            >
+              Test local notification
+            </button>
+            <button
+              type="button"
+              disabled={notifBusy}
+              onClick={async () => {
+                setNotifBusy(true);
+                setNotifMsg('');
+                try {
+                  await enablePushNotifications();
+                  setNotifMsg('Push subscription saved.');
+                } catch (e) {
+                  setNotifMsg(e.response?.data?.error || e.message || 'Push unavailable');
+                } finally {
+                  setNotifBusy(false);
+                }
+              }}
+              style={{
+                fontFamily: display, fontWeight: 700, fontSize: 12.5, padding: '10px 0', borderRadius: 10,
+                background: T.oxblood, color: '#fff', border: 'none', cursor: 'pointer',
+              }}
+            >
+              Enable push notifications
+            </button>
+            <button
+              type="button"
+              disabled={notifBusy}
+              onClick={async () => {
+                setNotifBusy(true);
+                setNotifMsg('');
+                try {
+                  await testServerPush('Server push test from RaktaSetu');
+                  setNotifMsg('Server push sent (check OS notification).');
+                } catch (e) {
+                  setNotifMsg(e.response?.data?.error || e.message || 'Server push unavailable');
+                } finally {
+                  setNotifBusy(false);
+                }
+              }}
+              style={{
+                fontFamily: display, fontWeight: 700, fontSize: 12.5, padding: '10px 0', borderRadius: 10,
+                background: T.card, color: T.mut, border: `1px solid ${T.line}`, cursor: 'pointer',
+              }}
+            >
+              Test server push
+            </button>
+            {notifMsg && (
+              <p style={{ fontFamily: body, fontSize: 12, color: T.mut, margin: 0 }}>{notifMsg}</p>
+            )}
+          </div>
+        ) : (
+          <p style={{ fontFamily: body, fontSize: 12, color: T.faint, margin: 0 }}>
+            This browser does not support notifications.
+          </p>
+        )}
       </Card>
 
       <Card style={{ marginTop: 10, padding: 13 }}>

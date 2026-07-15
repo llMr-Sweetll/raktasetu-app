@@ -1,8 +1,38 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['drop-icon.svg', 'push-handler.js'],
+      manifest: {
+        name: 'RaktaSetu',
+        short_name: 'RaktaSetu',
+        description: 'Connect. Donate. Save Lives.',
+        start_url: '/',
+        display: 'standalone',
+        background_color: '#0A0506',
+        theme_color: '#7A1626',
+        orientation: 'portrait',
+        icons: [
+          { src: '/drop-icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+          { src: '/drop-icon.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'maskable' },
+          { src: '/drop-icon.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'maskable' },
+        ],
+      },
+      workbox: {
+        importScripts: ['/push-handler.js'],
+        navigateFallback: '/index.html',
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+      },
+      devOptions: {
+        enabled: false,
+      },
+    }),
+  ],
   // Railway serves SPA at site root (unified with API). Local Vite still proxies /api.
   base: '/',
   server: {

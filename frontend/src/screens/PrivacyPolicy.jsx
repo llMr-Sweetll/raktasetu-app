@@ -95,8 +95,10 @@ export default function PrivacyPolicy() {
         <Section title="8. Contact & Grievances">
           <p>For privacy-related questions, data access requests, or grievances:</p>
           <p style={{ margin: '8px 0' }}>
-            <strong>Email:</strong> privacy@raktasetu.org<br />
-            <strong>Data Protection Officer:</strong> RaktaSetu Trust, Bengaluru, Karnataka
+            <strong>Privacy:</strong> privacy@raktasetu.org<br />
+            <strong>Support:</strong> support@raktasetu.org<br />
+            <strong>Data Protection Officer:</strong> RaktaSetu Trust, Bengaluru, Karnataka<br />
+            <strong>Live app:</strong> https://raktasetu-production.up.railway.app/
           </p>
           <p>If you are unsatisfied with our response, you may approach the <strong>Data Protection Board of India</strong>.</p>
         </Section>

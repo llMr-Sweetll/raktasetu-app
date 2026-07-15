@@ -1,9 +1,16 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { HashRouter } from 'react-router-dom'
+import { registerSW } from 'virtual:pwa-register'
 import App from './App.jsx'
 import { AuthProvider } from './hooks/useAuth.js'
 import './index.css'
+
+try {
+  registerSW({ immediate: true })
+} catch (err) {
+  console.warn('[RaktaSetu] SW register skipped:', err)
+}
 
 try {
   const root = document.getElementById('root')

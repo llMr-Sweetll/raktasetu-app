@@ -2,12 +2,14 @@
 
 ## Live app (Railway)
 
+Production: **https://raktasetu-production.up.railway.app/**
+
 Single Railway service serves the SPA and API:
 
-- SPA: `https://<your-app>.up.railway.app/`
-- Health: `https://<your-app>.up.railway.app/api/health`
+- SPA / landing: `https://raktasetu-production.up.railway.app/`
+- Health: `https://raktasetu-production.up.railway.app/api/health`
 
-GitHub Pages is **not** used for MVP hosting.
+GitHub Pages and Cloudflare tunnels are **not** used for hosting.
 
 ## Backend + Frontend Deployment (Railway)
 
@@ -25,8 +27,12 @@ railway domain
 - `JWT_SECRET` — Random secret for JWT signing
 - `JWT_EXPIRES_IN` — e.g. `7d`
 - `NODE_ENV` — `production`
-- `FRONTEND_ORIGINS` — comma-separated extra origins (local Vite)
+- `FRONTEND_ORIGINS` — comma-separated extra origins (local Vite + public Railway URL)
 - `PORT` — injected by Railway (do not hardcode)
+
+**Optional:**
+- `GOOGLE_CLIENT_ID` + rebuild with `VITE_GOOGLE_CLIENT_ID` — Google Sign-In
+- `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` — Web Push (`npx web-push generate-vapid-keys`)
 
 Nixpacks builds `frontend/dist` and starts Express, which serves the SPA when the dist folder exists.
 

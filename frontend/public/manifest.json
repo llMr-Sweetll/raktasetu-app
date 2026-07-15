@@ -4,7 +4,7 @@
   "description": "Connect. Donate. Save Lives.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F5F3F0",
+  "background_color": "#0A0506",
   "theme_color": "#7A1626",
   "orientation": "portrait",
   "icons": [

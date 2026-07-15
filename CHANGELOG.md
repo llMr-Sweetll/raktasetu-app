@@ -2,14 +2,27 @@
 
 All notable changes to RaktaSetu are documented in this file.
 
-## [Unreleased]
+## [1.1.0] — 2026-07-15
 
-### Planned / in progress
+### Added
 
-- Three.js animated brand landing at `/`
-- Google Sign-In (OAuth) into existing JWT auth
-- PWA installability + Web Push foundation (VAPID)
-- Documentation, contacts, and deployment notes refresh
+- Three.js “Living Bridge” animated landing at `/#/` (brand-first guest experience)
+- Google Sign-In path (`POST /api/auth/google` + GIS button when `VITE_GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_ID` set)
+- PWA via `vite-plugin-pwa` (service worker, installable manifest)
+- Web Push foundation (`/api/push/*`, VAPID, `push_subscriptions` table) + local notification demo on donor Profile
+- `CHANGELOG.md`, landing/Google/PWA design + plan under `docs/superpowers/`
+- Contacts: support@raktasetu.org, privacy@raktasetu.org (Privacy Policy + README)
+
+### Changed
+
+- Public routes (`/`, `/login`, `/register`, `/privacy`) no longer blocked by auth loading spinner
+- Login screen shares landing atmosphere; link back to landing
+- README points at Railway live URL; Cloudflare / GH Pages noted as retired
+- App version bump to 1.1.0
+
+### Fixed
+
+- Guest first paint stuck on “Loading RaktaSetu…” when only landing was needed
 
 ## [1.0.0] — 2026-07-15
 
