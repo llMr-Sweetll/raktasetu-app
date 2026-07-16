@@ -1,4 +1,4 @@
-import { pool, applyContext } from '../db.js';
+import { pool, applyContext, ensureRlsRole } from '../db.js';
 
 export async function withAuthorizationContext(
   { userId = '', role, hospitalId = '' },
@@ -6,6 +6,7 @@ export async function withAuthorizationContext(
 ) {
   const client = await pool.connect();
   try {
+    await ensureRlsRole(client);
     await client.query('BEGIN');
     await applyContext(client, { userId, role, hospitalId });
     const result = await work(client);

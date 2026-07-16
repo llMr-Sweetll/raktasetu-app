@@ -2,6 +2,11 @@ BEGIN;
 
 DO $$
 BEGIN
+  -- Neon: create LOGIN role raktasetu_app via Neon API/CLI (SQL cannot grant LOGIN there).
+  -- Runtime RLS role must remain NOLOGIN + NOBYPASSRLS; the API SET ROLEs into it.
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'raktasetu_rls') THEN
+    CREATE ROLE raktasetu_rls NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS;
+  END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'raktasetu_app') THEN
     CREATE ROLE raktasetu_app NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS;
   END IF;
@@ -145,18 +150,19 @@ $$;
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC;
 REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM PUBLIC;
-GRANT USAGE ON SCHEMA public TO raktasetu_app;
+GRANT USAGE ON SCHEMA public TO raktasetu_rls;
 GRANT SELECT, INSERT, UPDATE, DELETE ON
   users, hospitals, blood_requests, donor_responses, donations, credits,
   family_members, notifications, push_subscriptions, token_blacklist,
   audit_logs, pending_google_registrations, refresh_tokens
-TO raktasetu_app;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO raktasetu_app;
+TO raktasetu_rls;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO raktasetu_rls;
+GRANT raktasetu_rls TO raktasetu_app;
 
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE users FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS users_isolation ON users;
-CREATE POLICY users_isolation ON users TO raktasetu_app
+CREATE POLICY users_isolation ON users TO raktasetu_rls
 USING (
   app_role() = 'admin'
   OR id = app_user_id()
@@ -171,7 +177,7 @@ WITH CHECK (
 ALTER TABLE hospitals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE hospitals FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS hospitals_isolation ON hospitals;
-CREATE POLICY hospitals_isolation ON hospitals TO raktasetu_app
+CREATE POLICY hospitals_isolation ON hospitals TO raktasetu_rls
 USING (
   app_role() = 'admin'
   OR user_id = app_user_id()
@@ -189,7 +195,7 @@ WITH CHECK (
 ALTER TABLE blood_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE blood_requests FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS blood_requests_isolation ON blood_requests;
-CREATE POLICY blood_requests_isolation ON blood_requests TO raktasetu_app
+CREATE POLICY blood_requests_isolation ON blood_requests TO raktasetu_rls
 USING (
   app_role() = 'admin'
   OR hospital_id = app_hospital_id()
@@ -200,7 +206,7 @@ WITH CHECK (app_role() = 'admin' OR hospital_id = app_hospital_id());
 ALTER TABLE donor_responses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE donor_responses FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS donor_responses_isolation ON donor_responses;
-CREATE POLICY donor_responses_isolation ON donor_responses TO raktasetu_app
+CREATE POLICY donor_responses_isolation ON donor_responses TO raktasetu_rls
 USING (
   app_role() = 'admin'
   OR donor_id = app_user_id()
@@ -221,63 +227,63 @@ WITH CHECK (
 ALTER TABLE donations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE donations FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS donations_isolation ON donations;
-CREATE POLICY donations_isolation ON donations TO raktasetu_app
+CREATE POLICY donations_isolation ON donations TO raktasetu_rls
 USING (app_role() = 'admin' OR donor_id = app_user_id() OR hospital_id = app_hospital_id())
 WITH CHECK (app_role() = 'admin' OR hospital_id = app_hospital_id());
 
 ALTER TABLE credits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE credits FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS credits_isolation ON credits;
-CREATE POLICY credits_isolation ON credits TO raktasetu_app
+CREATE POLICY credits_isolation ON credits TO raktasetu_rls
 USING (app_role() = 'admin' OR donor_id = app_user_id())
 WITH CHECK (app_role() = 'admin' OR donor_id = app_user_id() OR app_role() = 'hospital');
 
 ALTER TABLE family_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE family_members FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS family_members_isolation ON family_members;
-CREATE POLICY family_members_isolation ON family_members TO raktasetu_app
+CREATE POLICY family_members_isolation ON family_members TO raktasetu_rls
 USING (app_role() = 'admin' OR donor_id = app_user_id())
 WITH CHECK (app_role() = 'admin' OR donor_id = app_user_id());
 
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS notifications_isolation ON notifications;
-CREATE POLICY notifications_isolation ON notifications TO raktasetu_app
+CREATE POLICY notifications_isolation ON notifications TO raktasetu_rls
 USING (app_role() = 'admin' OR user_id = app_user_id())
 WITH CHECK (app_role() = 'admin' OR user_id = app_user_id() OR app_role() = 'hospital');
 
 ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE push_subscriptions FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS push_subscriptions_isolation ON push_subscriptions;
-CREATE POLICY push_subscriptions_isolation ON push_subscriptions TO raktasetu_app
+CREATE POLICY push_subscriptions_isolation ON push_subscriptions TO raktasetu_rls
 USING (app_role() = 'admin' OR user_id = app_user_id())
 WITH CHECK (app_role() = 'admin' OR user_id = app_user_id());
 
 ALTER TABLE token_blacklist ENABLE ROW LEVEL SECURITY;
 ALTER TABLE token_blacklist FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS token_blacklist_isolation ON token_blacklist;
-CREATE POLICY token_blacklist_isolation ON token_blacklist TO raktasetu_app
+CREATE POLICY token_blacklist_isolation ON token_blacklist TO raktasetu_rls
 USING (app_role() IN ('admin', 'session') OR user_id = app_user_id())
 WITH CHECK (app_role() IN ('admin', 'session') OR user_id = app_user_id());
 
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS audit_logs_isolation ON audit_logs;
-CREATE POLICY audit_logs_isolation ON audit_logs TO raktasetu_app
+CREATE POLICY audit_logs_isolation ON audit_logs TO raktasetu_rls
 USING (app_role() = 'admin')
 WITH CHECK (app_role() IN ('admin', 'auth', 'donor', 'hospital', 'session') AND (user_id IS NULL OR user_id = app_user_id() OR app_role() = 'admin'));
 
 ALTER TABLE pending_google_registrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pending_google_registrations FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS pending_google_auth_only ON pending_google_registrations;
-CREATE POLICY pending_google_auth_only ON pending_google_registrations TO raktasetu_app
+CREATE POLICY pending_google_auth_only ON pending_google_registrations TO raktasetu_rls
 USING (app_role() = 'auth')
 WITH CHECK (app_role() = 'auth');
 
 ALTER TABLE refresh_tokens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE refresh_tokens FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS refresh_tokens_owner ON refresh_tokens;
-CREATE POLICY refresh_tokens_owner ON refresh_tokens TO raktasetu_app
+CREATE POLICY refresh_tokens_owner ON refresh_tokens TO raktasetu_rls
 USING (app_role() IN ('auth', 'session') OR user_id = app_user_id() OR app_role() = 'admin')
 WITH CHECK (app_role() IN ('auth', 'session') OR user_id = app_user_id() OR app_role() = 'admin');
 

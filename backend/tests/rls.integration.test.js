@@ -24,7 +24,7 @@ test('RLS denies missing context and isolates users', { skip: !process.env.TEST_
        ($4,$5,$6,'test','Second','donor','Test','Test',false,false,true,0,'active',NOW(),NOW())`,
       [first, `${first}@test.invalid`, `+1${first.replaceAll('-', '').slice(0, 10)}`, second, `${second}@test.invalid`, `+1${second.replaceAll('-', '').slice(0, 10)}`],
     );
-    await client.query('SET LOCAL ROLE raktasetu_app');
+    await client.query('SET LOCAL ROLE raktasetu_rls');
     const noContext = await client.query('SELECT id FROM users WHERE id IN ($1,$2)', [first, second]);
     assert.equal(noContext.rowCount, 0);
 

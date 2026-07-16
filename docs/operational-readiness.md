@@ -13,10 +13,25 @@
 ## Database roles and migrations
 
 - `MIGRATION_DATABASE_URL`: database owner; CI migration step and operator workstation only.
-- `DATABASE_URL`: least-privileged `raktasetu_app` login used by the API.
+- `DATABASE_URL`: Neon login role `raktasetu_app` (not `neondb_owner`). The API immediately `SET ROLE raktasetu_rls` (NOLOGIN, `rolbypassrls=false`) because Neon-managed login roles retain `BYPASSRLS`.
+- `DB_RUNTIME_ROLE`: defaults to `raktasetu_rls` when `NODE_ENV=production`.
 - `RETENTION_DATABASE_URL`: owner or dedicated maintenance role used only by the scheduled retention service.
 - Migrations are checksum-tracked in `schema_migrations`. Never edit an applied migration.
 - Take a provider backup or restore point before production schema changes. Test restoration in a non-production branch before relying on it.
+
+## Admin bootstrap (no public demo admin)
+
+Production must not ship documented demo admin passwords. To create or rotate an operator admin:
+
+```bash
+ALLOW_ADMIN_BOOTSTRAP=1 \
+ADMIN_EMAIL='ops@example.org' \
+ADMIN_PASSWORD='<strong-secret-min-16>' \
+MIGRATION_DATABASE_URL='...' \
+node backend/scripts/bootstrap-admin.js
+```
+
+Change the password on first login. Do not commit the password or put it in README.
 
 ## Hospital approval
 

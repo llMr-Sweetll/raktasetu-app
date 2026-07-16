@@ -19,6 +19,17 @@ pool.on('error', (err) => {
 
 const authorizationStore = new AsyncLocalStorage();
 
+/** Neon login roles may retain BYPASSRLS; assume a NOLOGIN NOBYPASSRLS runtime role. */
+export async function ensureRlsRole(client) {
+  const role = process.env.DB_RUNTIME_ROLE
+    || (process.env.NODE_ENV === 'production' ? 'raktasetu_rls' : '');
+  if (!role) return;
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(role)) {
+    throw new Error('Invalid DB_RUNTIME_ROLE');
+  }
+  await client.query(`SET ROLE ${role}`);
+}
+
 export function runWithAuthorizationContext(context, work) {
   return authorizationStore.run(context, work);
 }
@@ -31,16 +42,21 @@ async function applyContext(client, context) {
 
 export async function query(text, params) {
   const context = authorizationStore.getStore();
-  if (!context) return pool.query(text, params);
   const client = await pool.connect();
   try {
+    await ensureRlsRole(client);
+    if (!context) {
+      return await client.query(text, params);
+    }
     await client.query('BEGIN READ WRITE');
     await applyContext(client, context);
     const result = await client.query(text, params);
     await client.query('COMMIT');
     return result;
   } catch (error) {
-    await client.query('ROLLBACK');
+    if (context) {
+      try { await client.query('ROLLBACK'); } catch { /* ignore */ }
+    }
     throw error;
   } finally {
     client.release();
