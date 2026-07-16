@@ -116,9 +116,9 @@ router.post('/hospitals/:id/approval', validate(hospitalApprovalSchema), async (
         const approved = req.body.status === 'approved';
         await client.query(
           `UPDATE hospitals SET approval_status=$1,approved_by=$2,
-             approved_at=CASE WHEN $1='approved' THEN NOW() ELSE NULL END,updated_at=NOW()
+             approved_at=CASE WHEN $4 THEN NOW() ELSE NULL END,updated_at=NOW()
            WHERE id=$3`,
-          [req.body.status, req.user.id, id],
+          [req.body.status, req.user.id, id, approved],
         );
         await client.query(
           `UPDATE users SET account_status=$1,token_version=token_version+1,updated_at=NOW()

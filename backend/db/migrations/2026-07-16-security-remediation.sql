@@ -271,7 +271,14 @@ ALTER TABLE audit_logs FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS audit_logs_isolation ON audit_logs;
 CREATE POLICY audit_logs_isolation ON audit_logs TO raktasetu_rls
 USING (app_role() = 'admin')
-WITH CHECK (app_role() IN ('admin', 'auth', 'donor', 'hospital', 'session') AND (user_id IS NULL OR user_id = app_user_id() OR app_role() = 'admin'));
+WITH CHECK (
+  app_role() = 'admin'
+  OR app_role() = 'auth'
+  OR (
+    app_role() IN ('donor', 'hospital', 'session')
+    AND (user_id IS NULL OR user_id = app_user_id())
+  )
+);
 
 ALTER TABLE pending_google_registrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pending_google_registrations FORCE ROW LEVEL SECURITY;
