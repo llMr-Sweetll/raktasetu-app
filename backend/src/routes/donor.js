@@ -276,19 +276,15 @@ router.post('/respond/:requestId', validate(donorRequestParamsSchema, 'params'),
       [donorId, requestId]
     );
     if (requestInfo.rows.length > 0) {
-      const notifId = uuidv4();
       const notifTitle = status === 'accepted' ? 'Donor Accepted Request' : 'Donor Declined Request';
       await query(
-        `INSERT INTO notifications (id, user_id, type, title, body, data, is_read, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+        `SELECT enqueue_notification($1, $2, $3, $4, $5::jsonb)`,
         [
-          notifId,
           requestInfo.rows[0].hospital_user_id,
           'donor_response',
           notifTitle,
           `${requestInfo.rows[0].donor_name} has ${status} your request for ${requestInfo.rows[0].blood_group}`,
           JSON.stringify({ request_id: requestId, donor_id: donorId, response_status: status }),
-          false
         ]
       );
     }
@@ -335,18 +331,14 @@ router.post('/arrived/:requestId', validate(donorRequestParamsSchema, 'params'),
       [donorId, requestId]
     );
     if (requestInfo.rows.length > 0) {
-      const notifId = uuidv4();
       await query(
-        `INSERT INTO notifications (id, user_id, type, title, body, data, is_read, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+        `SELECT enqueue_notification($1, $2, $3, $4, $5::jsonb)`,
         [
-          notifId,
           requestInfo.rows[0].hospital_user_id,
           'donor_arrived',
           'Donor Has Arrived',
           `${requestInfo.rows[0].donor_name} has arrived at your hospital`,
           JSON.stringify({ request_id: requestId, donor_id: donorId }),
-          false
         ]
       );
     }

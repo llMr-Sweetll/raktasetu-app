@@ -36,7 +36,6 @@ export async function completeDonationInTransaction(
   );
   const response = responseResult.rows[0];
   if (!response) throw serviceError(404, 'RESPONSE_NOT_FOUND', 'Donor response not found');
-  if (response.status !== 'arrived') throw serviceError(409, 'DONOR_NOT_ARRIVED', 'Only arrived responses can be completed');
 
   const replay = await client.query(
     'SELECT id FROM donations WHERE request_id=$1 AND donor_id=$2',
@@ -45,6 +44,7 @@ export async function completeDonationInTransaction(
   if (replay.rows[0]) {
     throw serviceError(409, 'DONATION_ALREADY_COMPLETED', 'Donation has already been completed');
   }
+  if (response.status !== 'arrived') throw serviceError(409, 'DONOR_NOT_ARRIVED', 'Only arrived responses can be completed');
 
   const donorResult = await client.query(
     'SELECT hospital_donor_blood_group($1) AS blood_group',

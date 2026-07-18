@@ -19,13 +19,15 @@ All notable changes to RaktaSetu are documented in this file.
 - Pending hospital login routes to `/hospital-pending`
 - Google account-link no longer races authenticated redirects
 - Console reach copy uses API `donors_notified` instead of fabricated counts
+- Donor accept/arrive hospital notifications use `enqueue_notification` so RLS no longer 500s the response path
 
 ### Ops
 
-- Invite cohort runbook and retention cron guidance in `docs/operational-readiness.md`
+- Invite cohort runbook in `docs/operational-readiness.md`
+- Railway cron service `raktasetu-retention` scheduled daily at `0 3 * * *` with `RETENTION_DATABASE_URL` only on that service
 - Access token sample TTL documented as `30m` (refresh tokens remain the long-lived path)
 - Frontend CI installs Chromium and WebKit for Playwright mobile/desktop projects
-- GitHub→Railway deploy still requires repository secrets `RAILWAY_TOKEN` and `MIGRATION_DATABASE_URL` if not already set
+- GitHub→Railway deploy still needs repository secret `RAILWAY_TOKEN` (dashboard token; CLI cannot mint one). `MIGRATION_DATABASE_URL` secret already present.
 
 ### Notes
 

@@ -45,14 +45,14 @@ Change the password on first login. Do not commit the password or put it in READ
 
 Run `npm --prefix backend run retention` daily in a separate Railway cron service with `RETENTION_DATABASE_URL` only on that service.
 
-Suggested Railway cron service:
+Production cron service `raktasetu-retention` (configured 2026-07-18):
 
-- Empty service shell `raktasetu-retention` was created in the production environment (offline until configured).
-- Connect the same GitHub repo/source as the web service, or deploy the app tree so `backend/` is present.
+- GitHub source: `llMr-Sweetll/raktasetu-app` @ `main`
 - Start command: `npm --prefix backend run retention`
-- Cron schedule: `0 3 * * *` (daily 03:00 UTC) in the Railway service settings
-- Variables (on the cron service only): `RETENTION_DATABASE_URL` (owner/maintenance), `NODE_ENV=production`
+- Cron schedule: `0 3 * * *` (daily 03:00 UTC); next run shown in Railway as `nextCronRunAt`
+- Variables on the cron service only: `RETENTION_DATABASE_URL` (Neon owner/maintenance), `NODE_ENV=production`
 - Do not attach the owner URL to the web service (boot refuses `MIGRATION_DATABASE_URL` there)
+- Deploy ID when first wired: `f1fe3178-b4ba-4721-816a-dcffd16380bc`
 
 - Expired Google onboarding records: one day after expiry.
 - Expired/revoked refresh tokens: seven/thirty days.
@@ -70,7 +70,8 @@ Use this runbook after P0 invite gates are green (`/api/health`, hospital matchi
 2. Bootstrap or rotate admin with `bootstrap-admin.js` if needed; change the password immediately; remove `ALLOW_ADMIN_BOOTSTRAP` and bootstrap password variables from Railway.
 3. Invite 1 to 2 hospitals: they register, you verify license offline, then approve in `/#/admin`. Pending hospitals stay blocked.
 4. Invite 5 to 20 donors: register or Google onboarding, complete profile, enable Web Push on Profile, go on-call near an approved hospital.
-5. Dry-run: approved hospital creates a non-critical test request → donor receives push and/or in-app alert → accept → arrive → hospital verifies with the on-the-way QR/`ref_code` → credits appear → second verify is rejected.
+5. Dry-run: approved hospital creates a non-critical test request → donor receives push and/or in-app alert → accept → arrive → hospital verifies with the on-the-way QR (API query param `ref`, value is `ref_code`) → credits appear → second verify is rejected.
+   - 2026-07-18 production dry-run (labeled `DRYRUN* Jul18c`): approve → create-request (`donors_notified: 3`) → accept → arrive → `ref` lookup → verify (+100 credits) → second verify rejected → request closed. Test accounts keep the `DRYRUN` name/email prefix.
 6. Tell invitees clearly: closed beta; not emergency medical dispatch; no SMS OTP; data may be processed on US Neon and SEA Railway; keep the app open or rely on push after enabling it.
 7. Monitor `privacy@raktasetu.org` and `security@raktasetu.org`.
 8. Rollback: redeploy the last good commit. Do not restore the database unless you accept write loss since the restore point.
