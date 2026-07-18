@@ -21,7 +21,21 @@ BEGIN
   END IF;
 END $$;
 
-UPDATE family_members SET relation = 'other' WHERE relation IS NULL;
+-- Normalize legacy free-text relationship labels into the enum.
+UPDATE family_members SET relation = lower(trim(relation)) WHERE relation IS NOT NULL;
+UPDATE family_members SET relation = 'parent'
+  WHERE relation IN ('father', 'mother', 'dad', 'mom', 'mummy', 'papa');
+UPDATE family_members SET relation = 'spouse'
+  WHERE relation IN ('husband', 'wife', 'partner');
+UPDATE family_members SET relation = 'child'
+  WHERE relation IN ('son', 'daughter', 'kid');
+UPDATE family_members SET relation = 'sibling'
+  WHERE relation IN ('brother', 'sister');
+UPDATE family_members
+SET relation = 'other'
+WHERE relation IS NULL
+   OR relation NOT IN ('spouse', 'parent', 'child', 'sibling', 'other');
+
 UPDATE family_members SET created_at = COALESCE(created_at, now()) WHERE created_at IS NULL;
 
 ALTER TABLE family_members ALTER COLUMN relation SET NOT NULL;
