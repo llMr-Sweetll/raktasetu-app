@@ -73,7 +73,7 @@ function App() {
       minHeight: '100vh',
       color: T.ink,
     }}>
-      <div className={location.pathname.startsWith('/admin') || location.pathname.startsWith('/console') ? 'app-shell app-shell--wide' : (isPublic ? 'app-shell app-shell--fluid' : 'app-shell')}>
+      <div className={location.pathname.startsWith('/admin') || location.pathname.startsWith('/console') ? 'app-shell app-shell--wide app-shell--console-dark' : (isPublic ? 'app-shell app-shell--fluid' : 'app-shell')}>
         <Routes>
           {/* Public routes */}
           <Route path="/" element={user ? <Navigate to={roleHome(user)} replace /> : <Landing />} />

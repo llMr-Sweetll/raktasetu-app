@@ -60,7 +60,7 @@ export default function DonorProfile() {
   const donorSince = user?.created_at ? new Date(user.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : 'Not available';
 
   return (
-    <div style={{ padding: '18px 18px 90px', maxWidth: 430, margin: '0 auto' }}>
+    <div style={{ padding: '18px 18px calc(90px + env(safe-area-inset-bottom))', maxWidth: 430, margin: '0 auto' }}>
       <h2 style={{ fontFamily: display, fontWeight: 800, fontSize: 22, margin: 0, color: T.ink }}>Profile</h2>
 
       <Card style={{ marginTop: 14, display: 'flex', gap: 14, alignItems: 'center' }}>
@@ -90,7 +90,25 @@ export default function DonorProfile() {
           <p style={{ fontFamily: display, fontWeight: 700, fontSize: 13.5, margin: '0 0 4px', color: T.ink }}>Complete age eligibility</p>
           <p style={{ fontFamily: body, fontSize: 12, color: T.faint, margin: '0 0 10px' }}>Date of birth is required before you can go on call.</p>
           <div style={{ display: 'flex', gap: 8 }}>
-            <input aria-label="Date of birth" type="date" value={dateOfBirth} onChange={(event) => setDateOfBirth(event.target.value)} style={{ flex: 1, minHeight: 42, borderRadius: 10, border: `1px solid ${T.line}`, padding: '0 10px' }} />
+            <input
+              aria-label="Date of birth"
+              type="date"
+              value={dateOfBirth}
+              onChange={(event) => setDateOfBirth(event.target.value)}
+              className="rs-field"
+              style={{
+                flex: 1,
+                minHeight: 42,
+                borderRadius: 10,
+                border: `1px solid ${T.line}`,
+                padding: '0 10px',
+                background: T.card,
+                color: T.ink,
+                colorScheme: 'light',
+                fontFamily: body,
+                fontSize: 16,
+              }}
+            />
             <button type="button" onClick={async () => {
               setProfileMsg('');
               try {

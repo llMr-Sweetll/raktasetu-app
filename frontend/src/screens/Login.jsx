@@ -227,6 +227,7 @@ export default function Login() {
                 autoComplete="username"
                 aria-label="Phone or email"
                 required
+                className="rs-dark-field"
                 style={{
                   width: '100%', padding: '14px 14px 14px 40px', borderRadius: 12, minHeight: 48,
                   border: '1px solid rgba(242,232,230,0.18)', fontFamily: body, fontSize: 16,
@@ -241,6 +242,7 @@ export default function Login() {
                 autoComplete="current-password"
                 aria-label="Password"
                 required
+                className="rs-dark-field"
                 style={{
                   width: '100%', padding: '14px 14px 14px 40px', borderRadius: 12, minHeight: 48,
                   border: '1px solid rgba(242,232,230,0.18)', fontFamily: body, fontSize: 16,

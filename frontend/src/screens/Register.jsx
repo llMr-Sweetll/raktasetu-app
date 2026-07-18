@@ -98,12 +98,15 @@ export default function Register() {
     fontFamily: body,
     fontSize: 16,
     background: T.card,
+    color: T.ink,
+    colorScheme: 'light',
+    caretColor: T.ink,
     minHeight: 48,
   };
 
   return (
     <div
-      className="safe-top safe-bottom"
+      className="safe-top safe-bottom rs-light-shell"
       style={{
         minHeight: '100dvh',
         padding: 'max(24px, env(safe-area-inset-top)) 20px max(40px, env(safe-area-inset-bottom))',
@@ -180,7 +183,7 @@ export default function Register() {
           )}
 
           <div style={{ marginBottom: 12 }}>
-            <label style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>
+            <label style={{ fontFamily: body, fontSize: 11, color: T.mut, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>
               {isHospital ? 'Hospital / blood bank name' : 'Full name'}
             </label>
             <div style={{ position: 'relative' }}>
@@ -190,7 +193,7 @@ export default function Register() {
           </div>
 
           <div style={{ marginBottom: 12 }}>
-            <label style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Phone</label>
+            <label style={{ fontFamily: body, fontSize: 11, color: T.mut, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Phone</label>
             <div style={{ position: 'relative' }}>
               <Phone size={16} color={T.faint} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
               <input type="tel" aria-label="Phone" required autoComplete="tel" placeholder="+91 98765 43210" value={phone} onChange={(e) => setPhone(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
@@ -198,7 +201,7 @@ export default function Register() {
           </div>
 
           <div style={{ marginBottom: 12 }}>
-            <label style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Email</label>
+            <label style={{ fontFamily: body, fontSize: 11, color: T.mut, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Email</label>
             <div style={{ position: 'relative' }}>
               <Mail size={16} color={T.faint} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
               <input type="email" aria-label="Email" required autoComplete="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
@@ -206,7 +209,7 @@ export default function Register() {
           </div>
 
           <div style={{ marginBottom: 12 }}>
-            <label style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Password</label>
+            <label style={{ fontFamily: body, fontSize: 11, color: T.mut, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Password</label>
             <div style={{ position: 'relative' }}>
               <Lock size={16} color={T.faint} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
               <input type="password" aria-label="Password" required autoComplete="new-password" placeholder="Min 8 characters with uppercase, lowercase, number, symbol" value={password} onChange={(e) => setPassword(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
@@ -215,7 +218,7 @@ export default function Register() {
 
           {!isHospital ? (
             <div style={{ marginBottom: 12 }}>
-              <label style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Date of birth</label>
+              <label style={{ fontFamily: body, fontSize: 11, color: T.mut, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Date of birth</label>
               <div style={{ position: 'relative' }}>
                 <Calendar size={16} color={T.faint} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
                 <input type="date" aria-label="Date of birth" required value={dob} onChange={(e) => setDob(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
@@ -224,11 +227,11 @@ export default function Register() {
           ) : (
             <>
               <div style={{ marginBottom: 12 }}>
-                <label style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>License number</label>
+                <label style={{ fontFamily: body, fontSize: 11, color: T.mut, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>License number</label>
                 <input type="text" aria-label="License number" required value={licenseNumber} onChange={(e) => setLicenseNumber(e.target.value)} style={inputStyle} />
               </div>
               <div style={{ marginBottom: 12 }}>
-                <label style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Hospital address</label>
+                <label style={{ fontFamily: body, fontSize: 11, color: T.mut, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Hospital address</label>
                 <textarea aria-label="Hospital address" required value={address} onChange={(e) => setAddress(e.target.value)} style={{ ...inputStyle, minHeight: 88, resize: 'vertical' }} />
               </div>
             </>
@@ -236,7 +239,7 @@ export default function Register() {
 
           {!isHospital && (
             <div style={{ marginBottom: 12 }}>
-              <label style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Blood group</label>
+              <label style={{ fontFamily: body, fontSize: 11, color: T.mut, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Blood group</label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
                 {GROUPS.map((g) => (
                   <button
@@ -261,14 +264,14 @@ export default function Register() {
 
           <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
             <div style={{ flex: 1 }}>
-              <label style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>City</label>
+              <label style={{ fontFamily: body, fontSize: 11, color: T.mut, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>City</label>
               <div style={{ position: 'relative' }}>
                 <MapPin size={16} color={T.faint} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
                 <input type="text" aria-label="City" required autoComplete="address-level2" placeholder="City" value={city} onChange={(e) => setCity(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
               </div>
             </div>
             <div style={{ flex: 1 }}>
-              <label style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>State</label>
+              <label style={{ fontFamily: body, fontSize: 11, color: T.mut, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>State</label>
               <input type="text" aria-label="State" required autoComplete="address-level1" placeholder="State" value={state} onChange={(e) => setState(e.target.value)} style={inputStyle} />
             </div>
           </div>

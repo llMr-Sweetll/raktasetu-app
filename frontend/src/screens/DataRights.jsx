@@ -123,6 +123,7 @@ export default function DataRights() {
                   </label>
                   <input
                     id="delete-confirmation"
+                    className="rs-field"
                     type="text"
                     value={confirmation}
                     onChange={(event) => setConfirmation(event.target.value)}
@@ -136,6 +137,9 @@ export default function DataRights() {
                       borderRadius: 8,
                       font: 'inherit',
                       background: '#fff',
+                      color: '#17151A',
+                      colorScheme: 'light',
+                      caretColor: '#17151A',
                     }}
                   />
                   <button
