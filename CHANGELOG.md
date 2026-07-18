@@ -15,10 +15,16 @@ All notable changes to RaktaSetu are documented in this file.
 - Web SPA uses `BrowserRouter` (clean URLs + Express SPA fallback); Capacitor native keeps `HashRouter`; legacy `/#/…` deep links redirect on web
 - `AuthProvider` again renders `children` (regression that blanked the SPA shell)
 - `index.html` served with real `Cache-Control: no-store` (hashed assets stay long-cache); removed ineffective `http-equiv` cache meta tags
+- Open Graph / Twitter share image now uses compressed `og-card-1200x630.jpg` (~43 KB) instead of the large PNG
 
 ### Added
 
 - CI guard: blood compatibility matrix must match across `donor.js`, `hospital.js`, and `frontend/src/theme.js`
+- Shared Cursor project rule at `.cursor/rules/raktasetu.mdc` (stack, i18n, RLS, privacy, auth, blood domain)
+
+### Changed
+
+- `/api/health` version is read from `backend/package.json` at startup (package version aligned to `2.0.6`)
 
 ### Notes
 

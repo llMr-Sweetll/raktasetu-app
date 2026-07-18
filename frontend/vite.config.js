@@ -8,7 +8,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       minify: false,
-      includeAssets: ['drop-icon.svg', 'icon-192.png', 'icon-512.png', 'og-card-1200x630.png', 'push-handler.js'],
+      includeAssets: ['drop-icon.svg', 'icon-192.png', 'icon-512.png', 'og-card-1200x630.jpg', 'push-handler.js'],
       manifest: {
         name: 'RaktaSetu',
         short_name: 'RaktaSetu',
@@ -31,7 +31,7 @@ export default defineConfig({
       workbox: {
         importScripts: ['/push-handler.js'],
         navigateFallback: '/index.html',
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,jpg,ico,woff2}'],
       },
       devOptions: {
         enabled: false,

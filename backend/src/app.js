@@ -16,7 +16,9 @@ import { apiRateLimitKey } from './middleware/rateLimitKey.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ORIGINS = ['http://localhost:5173', 'http://localhost:3001'];
-const APP_VERSION = '2.0.6';
+const APP_VERSION = JSON.parse(
+  fs.readFileSync(path.join(__dirname, '../package.json'), 'utf8'),
+).version;
 
 export function buildAllowedOrigins(env = process.env) {
   const configured = (env.FRONTEND_ORIGINS || DEFAULT_ORIGINS.join(','))
