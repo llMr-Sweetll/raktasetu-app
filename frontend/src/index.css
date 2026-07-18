@@ -8,6 +8,23 @@ html {
   scroll-behavior: smooth;
 }
 
+/*
+  Color-scheme strategy (meta stays "light dark"):
+  - Light donor / register shells force color-scheme: light so Chromium
+    cannot paint white form text on white fields under OS dark preference.
+  - Dark auth-flow and console shells force color-scheme: dark.
+  - Author styles must still set explicit color + background on inputs.
+*/
+.app-shell:not(.app-shell--console-dark),
+.rs-light-shell {
+  color-scheme: light;
+}
+
+.auth-flow,
+.app-shell--console-dark {
+  color-scheme: dark;
+}
+
 html, body, #root {
   min-height: 100%;
   font-family: 'Public Sans', 'Segoe UI', system-ui, sans-serif;
@@ -15,6 +32,31 @@ html, body, #root {
   color: #17151A;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Light interactive fields: never inherit Chromium dark-form white text */
+.rs-field,
+.rs-light-shell input:not([type='checkbox']):not([type='radio']),
+.rs-light-shell textarea,
+.rs-light-shell select {
+  color-scheme: light;
+  color: var(--rs-ink, #17151A);
+  background: var(--rs-white, #FFFFFF);
+  caret-color: var(--rs-ink, #17151A);
+}
+
+.rs-field::placeholder,
+.rs-light-shell input::placeholder,
+.rs-light-shell textarea::placeholder {
+  color: #6F6963;
+  opacity: 1;
+}
+
+.auth-flow__card input::placeholder,
+.auth-flow__card textarea::placeholder,
+.rs-dark-field::placeholder {
+  color: #A89B96;
+  opacity: 1;
 }
 
 /* Pulse animation for on-call drop */
@@ -82,7 +124,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 .auth-flow__card h1 {
   margin: 8px 0 12px;
-  font-family: 'Libre Baskerville', Georgia, serif;
+  font-family: 'Anek Latin', 'Segoe UI', system-ui, sans-serif;
   font-size: clamp(1.7rem, 5vw, 2.4rem);
 }
 
