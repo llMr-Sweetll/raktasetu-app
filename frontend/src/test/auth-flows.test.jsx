@@ -3,16 +3,20 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import GoogleOnboarding from '../screens/GoogleOnboarding.jsx';
 import HospitalPending from '../screens/HospitalPending.jsx';
+import Register from '../screens/Register.jsx';
+import { T } from '../theme.js';
 
 const completeGoogleOnboarding = vi.fn();
+const register = vi.fn();
 vi.mock('../hooks/useAuth.js', () => ({
-  useAuth: () => ({ completeGoogleOnboarding }),
+  useAuth: () => ({ completeGoogleOnboarding, register }),
 }));
 
 afterEach(() => {
   cleanup();
   sessionStorage.clear();
   completeGoogleOnboarding.mockReset();
+  register.mockReset();
 });
 
 describe('identity state screens', () => {
@@ -31,5 +35,17 @@ describe('identity state screens', () => {
     fireEvent.click(screen.getByRole('button', { name: /create donor account/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/consent is required/i);
     expect(completeGoogleOnboarding).not.toHaveBeenCalled();
+  });
+
+  it('sets explicit ink color on register light inputs', () => {
+    render(
+      <MemoryRouter>
+        <Register />
+      </MemoryRouter>,
+    );
+    const nameInput = screen.getByLabelText('Full name');
+    expect(nameInput).toHaveStyle({ color: T.ink, background: T.card });
+    expect(nameInput.style.color.toLowerCase()).not.toBe('#fff');
+    expect(nameInput.style.color.toLowerCase()).not.toBe('rgb(255, 255, 255)');
   });
 });

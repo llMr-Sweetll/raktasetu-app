@@ -2,6 +2,20 @@
 
 All notable changes to RaktaSetu are documented in this file.
 
+## [2.0.2] — 2026-07-18
+
+### Fixed
+
+- Light form fields (register, profile DOB, data-rights delete confirm) stay ink-on-white under OS dark preference
+- Login and auth-flow placeholders use stronger contrast on dark fields
+- On-the-way screen renders a real scannable verification QR
+- Landing night disclaimer/footer muted text and console subtitle contrast improved
+- Bottom navigation respects device safe-area insets
+
+### Notes
+
+- Neon safety branch `mvp-pre-role-switch-2026-07-16` was deleted; production uses Neon primary `main` only
+
 ## [2.0.1] — 2026-07-18
 
 ### Security
@@ -13,7 +27,6 @@ All notable changes to RaktaSetu are documented in this file.
 
 - Production remains on the MVP Release deployment (`fe5201da…`); no application rebuild required for the env/hygiene hardening above
 - GitHub→Railway auto-deploy still needs a repository `RAILWAY_TOKEN` (and `MIGRATION_DATABASE_URL`) secret — create a Railway project/account token in the dashboard and set it with `gh secret set`
-- Neon safety branch `mvp-pre-role-switch-2026-07-16` can be deleted from the Neon console when no longer needed
 - Optional: rotate VAPID if keys were ever committed historically (requires donor re-subscribe); JWT rotation deferred because it invalidates all sessions
 
 ## [2.0.0] — 2026-07-15

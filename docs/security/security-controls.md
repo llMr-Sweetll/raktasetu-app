@@ -47,7 +47,7 @@ gh secret set RAILWAY_TOKEN
 gh secret set MIGRATION_DATABASE_URL
 ```
 
-- Neon branch `mvp-pre-role-switch-2026-07-16` is a pre-cutover safety snapshot. Delete it from Neon only after you no longer need rollback to that point-in-time.
+- The pre-cutover Neon safety branch `mvp-pre-role-switch-2026-07-16` was removed after cutover; production continues on the primary Neon `main` branch only.
 
 ## Open hardening (not blocking current MVP)
 
