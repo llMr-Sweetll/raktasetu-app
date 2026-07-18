@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { SOCKET_URL } from '../config.js';
+import { getAccessToken } from '../lib/accessToken.js';
+import { isNativePlatform } from '../lib/platform.js';
 
 export function useSocket(onEvent) {
   const socketRef = useRef(null);
@@ -8,7 +10,7 @@ export function useSocket(onEvent) {
   handlersRef.current = onEvent;
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = getAccessToken();
     if (!token) return undefined;
 
     const socket = io(SOCKET_URL, {
@@ -37,7 +39,7 @@ export function useSocket(onEvent) {
     }
 
     const onStorage = (event) => {
-      if (event.key === 'token' && !event.newValue) {
+      if (isNativePlatform() && event.key === 'token' && !event.newValue) {
         socket.disconnect();
       }
     };

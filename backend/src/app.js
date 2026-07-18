@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import authRoutes from './routes/auth.js';
@@ -40,7 +41,9 @@ export function createApp({ env = process.env } = {}) {
   app.use(applyPrivacyHeaders);
   app.use(cors({
     origin: (origin, callback) => callback(null, !origin || allowedOrigins.includes(origin)),
+    credentials: true,
   }));
+  app.use(cookieParser());
   app.use(express.json({ limit: '10kb', strict: true }));
   app.use(rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -67,7 +70,7 @@ export function createApp({ env = process.env } = {}) {
       success: true,
       data: {
         status: 'healthy',
-        version: '2.0.4',
+        version: '2.0.5',
         timestamp: new Date().toISOString(),
       },
     });

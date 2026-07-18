@@ -10,7 +10,8 @@ This document records implemented controls and known boundaries. It is not a cla
 - Google never auto-links by email. Existing donors must confirm their password; hospital and admin accounts cannot use the Google flow.
 - New Google donors receive a 15-minute, one-time onboarding token and must provide donor profile fields and explicit consent.
 - Access tokens use a fixed issuer, audience, algorithm allowlist, `jti`, token version, and 30-minute default lifetime.
-- Opaque refresh tokens rotate on use. Logout blacklists the access-token `jti`, revokes the supplied refresh token, and disconnects that user's sockets.
+- Opaque refresh tokens rotate on use. Logout blacklists the access-token `jti`, revokes the refresh token (httpOnly cookie on web; body on Capacitor native), and disconnects that user's sockets.
+- Web SPA: access token is memory-only; refresh token is an `httpOnly; Secure; SameSite=Strict` cookie scoped to `/api/auth`. Capacitor native keeps localStorage for both.
 - Revocation checks fail closed.
 
 ## Authorization and data isolation
@@ -49,7 +50,7 @@ gh secret set RAILWAY_TOKEN
 gh secret set MIGRATION_DATABASE_URL
 ```
 
-- The pre-cutover Neon safety branch `mvp-pre-role-switch-2026-07-16` was removed after cutover; production continues on the primary Neon `main` branch only.
+- Neon production project for the KLE pilot is `raktasetu-ap-southeast-1` (`delicate-shape-76707101`, region `aws-ap-southeast-1` / Singapore). Mumbai was not available on the plan. Pre-cutover safety branch on the former US project: `pre-ap-southeast-cutover-2026-07-18`. Runtime login remains `raktasetu_app` with `SET ROLE raktasetu_rls`; owner URL stays off the app service.
 
 ## Open hardening (not blocking current MVP)
 

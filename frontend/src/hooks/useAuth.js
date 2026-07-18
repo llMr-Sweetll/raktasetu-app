@@ -1,6 +1,14 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useState } from 'react';
-import api from '../api/client.js';
+import api, { refreshSession } from '../api/client.js';
 import { API_URL } from '../config.js';
+import {
+  clearSessionTokens,
+  getAccessToken,
+  getNativeRefreshToken,
+  setAccessToken,
+  setNativeRefreshToken,
+} from '../lib/accessToken.js';
+import { isNativePlatform } from '../lib/platform.js';
 
 const AuthContext = createContext(null);
 
@@ -8,8 +16,28 @@ function useAuthState() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const storeSession = (payload) => {
+    if (!payload?.token) return null;
+    setAccessToken(payload.token);
+    if (isNativePlatform() && payload.refresh_token) {
+      setNativeRefreshToken(payload.refresh_token);
+    }
+    const nextUser = payload.user;
+    setUser(nextUser);
+    return nextUser;
+  };
+
   const fetchUser = useCallback(async () => {
-    const token = localStorage.getItem('token');
+    let token = getAccessToken();
+    if (!token && !isNativePlatform()) {
+      try {
+        token = await refreshSession();
+      } catch {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+    }
     if (!token) {
       setUser(null);
       setLoading(false);
@@ -20,13 +48,14 @@ function useAuthState() {
     try {
       const res = await fetch(`${API_URL}/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
         signal: ctrl.signal,
       });
       if (!res.ok) throw new Error();
       const data = await res.json();
       setUser(data.data?.user || data.user);
     } catch {
-      localStorage.removeItem('token');
+      clearSessionTokens();
       setUser(null);
     } finally {
       clearTimeout(timer);
@@ -35,15 +64,6 @@ function useAuthState() {
   }, []);
 
   useEffect(() => { fetchUser(); }, [fetchUser]);
-
-  const storeSession = (payload) => {
-    if (!payload?.token) return null;
-    localStorage.setItem('token', payload.token);
-    if (payload.refresh_token) localStorage.setItem('refresh_token', payload.refresh_token);
-    const nextUser = payload.user;
-    setUser(nextUser);
-    return nextUser;
-  };
 
   const login = async (identifier, password) => {
     const payload = identifier.includes('@')
@@ -88,15 +108,13 @@ function useAuthState() {
   const linkGoogle = async ({ identifier, password }) => {
     const idToken = sessionStorage.getItem('google_link_token');
     if (!idToken) throw new Error('Google linking session expired');
-    // Defer setUser until link succeeds so /account-link is not raced away by App redirects.
     const payload = identifier.includes('@')
       ? { email: identifier, password }
       : { phone: identifier, password };
     const { data } = await api.post('/auth/login', payload);
     const session = data.data || data;
     if (!session?.token) throw new Error('Login failed');
-    localStorage.setItem('token', session.token);
-    if (session.refresh_token) localStorage.setItem('refresh_token', session.refresh_token);
+    storeSession(session);
     await api.post('/auth/google/link', { id_token: idToken, password });
     sessionStorage.removeItem('google_link_token');
     setUser(session.user);
@@ -104,14 +122,15 @@ function useAuthState() {
   };
 
   const logout = async () => {
-    const refreshToken = localStorage.getItem('refresh_token');
     try {
-      if (localStorage.getItem('token')) {
-        await api.post('/auth/logout', refreshToken ? { refresh_token: refreshToken } : {});
+      if (getAccessToken()) {
+        const body = isNativePlatform() && getNativeRefreshToken()
+          ? { refresh_token: getNativeRefreshToken() }
+          : {};
+        await api.post('/auth/logout', body);
       }
     } finally {
-      localStorage.removeItem('token');
-      localStorage.removeItem('refresh_token');
+      clearSessionTokens();
       setUser(null);
     }
   };
@@ -136,7 +155,7 @@ function useAuthState() {
 
 export function AuthProvider({ children }) {
   const value = useAuthState();
-  return createElement(AuthContext.Provider, { value }, children);
+  return createElement(AuthContext.Provider, { value });
 }
 
 export function useAuth() {

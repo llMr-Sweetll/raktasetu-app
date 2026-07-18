@@ -102,10 +102,10 @@ export default function PrivacyPolicy() {
 
         <PolicySection title="5. Browser storage and cookies">
           <p>
-            The web application stores an essential authentication token in browser local
-            storage after sign-in. It is used to keep the session active and is removed
-            when the user signs out or the session is rejected. Local storage is not a
-            cookie, but it remains accessible to scripts running on the same site.
+            On the web app, the short-lived access token is kept in memory for the
+            browsing session. A longer-lived refresh token is stored in an essential
+            HttpOnly cookie scoped to authentication endpoints and cleared on logout.
+            Native app builds may use on-device storage for the same session material.
           </p>
           <p>
             RaktaSetu does not currently include advertising or analytics trackers and

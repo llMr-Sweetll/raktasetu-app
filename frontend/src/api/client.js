@@ -1,45 +1,87 @@
 import axios from 'axios';
 import { API_URL } from '../config.js';
+import {
+  clearSessionTokens,
+  getAccessToken,
+  getNativeRefreshToken,
+  setAccessToken,
+  setNativeRefreshToken,
+} from '../lib/accessToken.js';
+import { isNativePlatform } from '../lib/platform.js';
 
 const api = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = getAccessToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (isNativePlatform()) {
+    config.headers['X-Client-Platform'] = 'native';
+  }
   return config;
 });
+
+async function refreshSession() {
+  if (isNativePlatform()) {
+    const refreshToken = getNativeRefreshToken();
+    if (!refreshToken) throw new Error('No refresh token');
+    const response = await axios.post(
+      `${API_URL}/auth/refresh`,
+      { refresh_token: refreshToken },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Client-Platform': 'native',
+        },
+        withCredentials: false,
+      },
+    );
+    const session = response.data.data;
+    setAccessToken(session.token);
+    if (session.refresh_token) setNativeRefreshToken(session.refresh_token);
+    return session.token;
+  }
+
+  const response = await axios.post(
+    `${API_URL}/auth/refresh`,
+    {},
+    { withCredentials: true, headers: { 'Content-Type': 'application/json' } },
+  );
+  const session = response.data.data;
+  setAccessToken(session.token);
+  return session.token;
+}
 
 api.interceptors.response.use(
   (res) => res,
   async (err) => {
     const original = err.config;
-    const refreshToken = localStorage.getItem('refresh_token');
     const isAuthOperation = original?.url?.includes('/auth/login') ||
       original?.url?.includes('/auth/refresh') ||
       original?.url?.includes('/auth/logout');
-    if (err.response?.status === 401 && refreshToken && original && !original._retried && !isAuthOperation) {
+    const canRefresh = isNativePlatform()
+      ? Boolean(getNativeRefreshToken())
+      : true;
+    if (err.response?.status === 401 && canRefresh && original && !original._retried && !isAuthOperation) {
       original._retried = true;
       try {
-        const response = await axios.post(`${API_URL}/auth/refresh`, { refresh_token: refreshToken });
-        const session = response.data.data;
-        localStorage.setItem('token', session.token);
-        localStorage.setItem('refresh_token', session.refresh_token);
-        original.headers.Authorization = `Bearer ${session.token}`;
+        const token = await refreshSession();
+        original.headers.Authorization = `Bearer ${token}`;
         return api(original);
       } catch {
         // Continue into local cleanup below.
       }
     }
     if (err.response?.status === 401 && !isAuthOperation) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('refresh_token');
+      clearSessionTokens();
       window.location.hash = '#/login';
     }
     return Promise.reject(err);
-  }
+  },
 );
 
+export { refreshSession };
 export default api;

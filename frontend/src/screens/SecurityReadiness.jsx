@@ -108,7 +108,7 @@ export default function SecurityReadiness() {
 
         <Section title="Known technical limitations">
           <ul>
-            <li>Authentication tokens are stored in browser local storage, not an HttpOnly cookie.</li>
+            <li>Web access tokens stay in memory; refresh uses an HttpOnly cookie. Capacitor native still uses local storage.</li>
             <li>Multi-factor authentication is not currently implemented.</li>
             <li>The code does not provide automated key rotation or a complete secrets governance process.</li>
             <li>Audit logging covers selected events, not every read of sensitive data.</li>

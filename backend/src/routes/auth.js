@@ -5,6 +5,11 @@ import { query } from '../db.js';
 import { withAuthorizationContext } from '../db/authorizedTransaction.js';
 import { authenticate } from '../middleware/auth.js';
 import { issueSession, createRefreshToken, hashRefreshToken, issueAccessToken } from '../auth/session.js';
+import {
+  clearRefreshCookie,
+  deliverSession,
+  readRefreshToken,
+} from '../auth/refreshCookie.js';
 import { createOneTimeToken, decideGoogleFlow, hashOneTimeToken, verifyGoogleIdentity } from '../auth/google.js';
 import { logAudit } from '../utils/compliance.js';
 import { buildAccountExport } from '../utils/dataExport.js';
@@ -32,6 +37,14 @@ function publicUser(user) {
   delete safe.token_version;
   delete safe.deleted_at;
   return safe;
+}
+
+function sessionResponse(res, req, status, user, session, extra = {}) {
+  const delivered = deliverSession(res, session, req);
+  return res.status(status).json({
+    success: true,
+    data: { user: publicUser(user), ...delivered, ...extra },
+  });
 }
 
 router.post('/register', validate(registrationSchema), async (req, res) => {
@@ -97,10 +110,7 @@ router.post('/register', validate(registrationSchema), async (req, res) => {
     if (result.pending) {
       return res.status(202).json({ success: true, data: { status: 'pending_approval' } });
     }
-    return res.status(201).json({
-      success: true,
-      data: { user: publicUser(result.user), ...result.session },
-    });
+    return sessionResponse(res, req, 201, result.user, result.session);
   } catch (error) {
     console.error('Registration failed:', error.message);
     return failure(res, 500, 'REGISTRATION_FAILED', 'Registration failed');
@@ -152,7 +162,7 @@ router.post('/login', validate(loginSchema), async (req, res) => {
     if (result.hospitalPending) {
       return failure(res, 403, 'HOSPITAL_APPROVAL_PENDING', 'Hospital access is pending administrator approval');
     }
-    return res.json({ success: true, data: { user: publicUser(result.user), ...result.session } });
+    return sessionResponse(res, req, 200, result.user, result.session);
   } catch (error) {
     console.error('Login failed:', error.message);
     return failure(res, 500, 'LOGIN_FAILED', 'Login failed');
@@ -207,7 +217,7 @@ router.post('/google', validate(googleTokenSchema), async (req, res) => {
       return failure(res, 409, 'ACCOUNT_LINK_REQUIRED', 'Sign in with your donor password to link Google');
     }
     if (result.flow === 'session') {
-      return res.json({ success: true, data: { flow: 'session', user: publicUser(result.user), ...result.session } });
+      return sessionResponse(res, req, 200, result.user, result.session, { flow: 'session' });
     }
     return res.json({ success: true, data: result });
   } catch (error) {
@@ -261,7 +271,7 @@ router.post('/google/onboarding', validate(googleOnboardingSchema), async (req, 
     });
     if (result.invalid) return failure(res, 401, 'ONBOARDING_TOKEN_INVALID', 'Onboarding session expired');
     if (result.conflict) return failure(res, 409, 'IDENTITY_ALREADY_EXISTS', 'This identity is already registered');
-    return res.status(201).json({ success: true, data: { user: publicUser(result.user), ...result.session } });
+    return sessionResponse(res, req, 201, result.user, result.session);
   } catch (error) {
     console.error('Google onboarding failed:', error.message);
     return failure(res, 500, 'GOOGLE_ONBOARDING_FAILED', 'Google onboarding failed');
@@ -309,8 +319,10 @@ router.post('/google/link', authenticate, validate(googleLinkSchema), async (req
 });
 
 router.post('/refresh', async (req, res) => {
-  const refreshToken = req.body?.refresh_token;
-  if (typeof refreshToken !== 'string' || refreshToken.length < 32 || Object.keys(req.body || {}).some((key) => key !== 'refresh_token')) {
+  const refreshToken = readRefreshToken(req);
+  const bodyKeys = Object.keys(req.body || {});
+  const invalidBody = bodyKeys.some((key) => key !== 'refresh_token');
+  if (!refreshToken || invalidBody) {
     return failure(res, 400, 'VALIDATION_ERROR', 'A valid refresh token is required');
   }
   try {
@@ -348,8 +360,12 @@ router.post('/refresh', async (req, res) => {
       });
       return { token: access.token, refresh_token: nextRefresh.token, expires_at: access.expiresAt.toISOString() };
     });
-    if (result.invalid || result.inactive) return failure(res, 401, 'REFRESH_TOKEN_INVALID', 'Refresh token is invalid');
-    return res.json({ success: true, data: result });
+    if (result.invalid || result.inactive) {
+      clearRefreshCookie(res);
+      return failure(res, 401, 'REFRESH_TOKEN_INVALID', 'Refresh token is invalid');
+    }
+    const delivered = deliverSession(res, result, req);
+    return res.json({ success: true, data: delivered });
   } catch (error) {
     console.error('Token refresh failed:', error.message);
     return failure(res, 500, 'TOKEN_REFRESH_FAILED', 'Token refresh failed');
@@ -358,6 +374,7 @@ router.post('/refresh', async (req, res) => {
 
 router.post('/logout', authenticate, async (req, res) => {
   try {
+    const refreshToken = readRefreshToken(req);
     await withAuthorizationContext(
       { userId: req.user.id, role: req.user.role, hospitalId: req.user.hospital_id || '' },
       async (client) => {
@@ -367,10 +384,10 @@ router.post('/logout', authenticate, async (req, res) => {
            ON CONFLICT (token_jti) DO NOTHING`,
           [uuidv4(), req.auth.claims.jti, req.user.id, req.auth.claims.exp],
         );
-        if (typeof req.body?.refresh_token === 'string') {
+        if (refreshToken) {
           await client.query(
             'UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = $1 AND token_hash = $2 AND revoked_at IS NULL',
-            [req.user.id, hashRefreshToken(req.body.refresh_token)],
+            [req.user.id, hashRefreshToken(refreshToken)],
           );
         }
         await logAudit({
@@ -384,6 +401,7 @@ router.post('/logout', authenticate, async (req, res) => {
       },
     );
     disconnectUser(req.user.id);
+    clearRefreshCookie(res);
     return res.json({ success: true, data: { message: 'Logged out' } });
   } catch (error) {
     console.error('Logout failed:', error.message);
