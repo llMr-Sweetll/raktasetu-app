@@ -11,6 +11,9 @@ test('production security policy enables HSTS and restricts browser capabilities
   assert.equal(options.referrerPolicy.policy, 'strict-origin-when-cross-origin');
   assert.deepEqual(options.contentSecurityPolicy.directives.objectSrc, ["'none'"]);
   assert.deepEqual(options.contentSecurityPolicy.directives.frameAncestors, ["'none'"]);
+  assert.ok(!options.contentSecurityPolicy.directives.styleSrc.includes('https://unpkg.com'));
+  assert.ok(!options.contentSecurityPolicy.directives.imgSrc.includes('https://unpkg.com'));
+  assert.deepEqual(options.contentSecurityPolicy.directives.connectSrc, ["'self'", 'https://accounts.google.com']);
 });
 
 test('Permissions-Policy allows same-origin camera for QR verify', () => {

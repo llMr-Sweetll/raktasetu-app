@@ -9,6 +9,7 @@ import BottomNav from '../components/BottomNav.jsx';
 import api from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { useSocket } from '../hooks/useSocket.js';
+import { getLang, t, toggleLang } from '../i18n.js';
 
 const body = "'Public Sans', 'Segoe UI', system-ui, sans-serif";
 const display = "'Anek Latin', 'Segoe UI', system-ui, sans-serif";
@@ -21,7 +22,7 @@ export default function DonorHome() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [toggleLoading, setToggleLoading] = useState(false);
-  const [lang, setLang] = useState('English');
+  const [lang, setLangState] = useState(getLang());
   const navigateRef = useRef(navigate);
   navigateRef.current = navigate;
 
@@ -33,7 +34,7 @@ export default function DonorHome() {
       setOnCall(payload.is_on_call);
       updateUser({ is_on_call: payload.is_on_call });
     } catch (_err) {
-      setError('Failed to load dashboard');
+      setError(t('home.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -59,7 +60,7 @@ export default function DonorHome() {
       setOnCall(payload.is_on_call);
       updateUser({ is_on_call: payload.is_on_call });
     } catch (_err) {
-      setError('Failed to update status');
+      setError(t('home.statusFailed'));
     } finally {
       setToggleLoading(false);
     }
@@ -67,7 +68,7 @@ export default function DonorHome() {
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: body, color: T.mut }}>
-      Loading dashboard...
+      {t('home.loading')}
     </div>
   );
 
@@ -84,8 +85,12 @@ export default function DonorHome() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Logo />
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button onClick={() => setLang(l => l === 'English' ? 'ಕನ್ನಡ' : 'English')}>
-            <Chip tone="gold">{lang === 'English' ? 'English · EN' : 'ಕನ್ನಡ · KN'}</Chip>
+          <button
+            type="button"
+            onClick={() => setLangState(toggleLang())}
+            aria-label="Toggle language"
+          >
+            <Chip tone="gold">{lang === 'en' ? t('home.langChip') : t('home.langChipActive')}</Chip>
           </button>
           <button onClick={() => navigate('/requests')} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
             <Bell size={19} color={T.mut} />
@@ -93,12 +98,11 @@ export default function DonorHome() {
         </div>
       </div>
 
-      <p style={{ fontFamily: body, color: T.mut, fontSize: 13.5, margin: '20px 0 2px' }}>Namaskara, {name}</p>
+      <p style={{ fontFamily: body, color: T.mut, fontSize: 13.5, margin: '20px 0 2px' }}>{t('home.greeting', { name })}</p>
       <h1 style={{ fontFamily: display, fontWeight: 800, fontSize: 26, margin: 0, color: T.ink, letterSpacing: '-0.02em' }}>
-        {onCall ? `You're on call for ${user?.city || 'your city'}.` : 'Ready when you are.'}
+        {onCall ? t('home.onCallTitle', { city: user?.city || 'your city' }) : t('home.offCallTitle')}
       </h1>
 
-      {/* Signature on-call drop toggle */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '26px 0 8px' }}>
         <div style={{ position: 'relative', width: 148, height: 148 }}>
           {onCall && (<>
@@ -125,43 +129,47 @@ export default function DonorHome() {
           </button>
         </div>
         <p style={{ fontFamily: body, fontSize: 12.5, color: T.faint, marginTop: 10, textAlign: 'center', maxWidth: 250 }}>
-          {onCall ? `Blood banks can ping you for ${blood} compatible emergencies within ${radius} km.` : 'Turn on to receive emergency pings from verified blood banks.'}
+          {onCall
+            ? t('home.onCallHint', { blood, radius })
+            : t('home.offCallHint')}
         </p>
       </div>
 
-      {/* Stats row */}
       <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
         <Card style={{ flex: 1, padding: 12 }}>
-          <p style={{ fontFamily: body, fontSize: 11, color: T.faint, margin: 0, textTransform: 'uppercase', letterSpacing: '.05em' }}>Your group</p>
+          <p style={{ fontFamily: body, fontSize: 11, color: T.faint, margin: 0, textTransform: 'uppercase', letterSpacing: '.05em' }}>{t('home.yourGroup')}</p>
           <p style={{ fontFamily: display, fontWeight: 800, fontSize: 22, margin: '2px 0 0', color: T.oxblood }}>{blood}</p>
         </Card>
         <Card style={{ flex: 1, padding: 12 }}>
-          <p style={{ fontFamily: body, fontSize: 11, color: T.faint, margin: 0, textTransform: 'uppercase', letterSpacing: '.05em' }}>Credits</p>
+          <p style={{ fontFamily: body, fontSize: 11, color: T.faint, margin: 0, textTransform: 'uppercase', letterSpacing: '.05em' }}>{t('home.credits')}</p>
           <p style={{ fontFamily: display, fontWeight: 800, fontSize: 22, margin: '2px 0 0', color: T.ink }}>{credits}</p>
         </Card>
         <Card style={{ flex: 1.2, padding: 12 }}>
-          <p style={{ fontFamily: body, fontSize: 11, color: T.faint, margin: 0, textTransform: 'uppercase', letterSpacing: '.05em' }}>Eligibility</p>
+          <p style={{ fontFamily: body, fontSize: 11, color: T.faint, margin: 0, textTransform: 'uppercase', letterSpacing: '.05em' }}>{t('home.eligibility')}</p>
           <p style={{ fontFamily: display, fontWeight: 700, fontSize: 14, margin: '5px 0 0', color: eligible ? T.leaf : T.arterial, display: 'flex', alignItems: 'center', gap: 5 }}>
-            <CheckCircle2 size={15} /> {eligible ? 'Eligible now' : nextEligible ? `Eligible ${nextEligible}` : 'Not eligible'}
+            <CheckCircle2 size={15} /> {eligible ? t('home.eligibleNow') : nextEligible ? t('home.eligibleOn', { date: nextEligible }) : t('home.notEligible')}
           </p>
-          <p style={{ fontFamily: body, fontSize: 10, color: T.faint, margin: '4px 0 0' }}>NBTC: male 90d / female 120d</p>
+          <p style={{ fontFamily: body, fontSize: 10, color: T.faint, margin: '4px 0 0' }}>{t('home.nbtcNote')}</p>
         </Card>
       </div>
 
-      {/* Active requests */}
       {requests.length > 0 ? (
         requests.slice(0, 2).map((req) => (
           <Card key={req.id} style={{ marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => navigate(`/alert/${req.id}`)}>
             <div>
-              <p style={{ fontFamily: display, fontWeight: 700, fontSize: 14.5, margin: 0, color: T.ink }}>{req.hospital_name} · {req.units_needed} units needed</p>
-              <p style={{ fontFamily: body, fontSize: 12.5, color: T.mut, margin: '3px 0 0' }}>{req.city} · {req.distance_km?.toFixed(1)} km away</p>
+              <p style={{ fontFamily: display, fontWeight: 700, fontSize: 14.5, margin: 0, color: T.ink }}>
+                {t('home.unitsNeeded', { hospital: req.hospital_name, units: req.units_needed })}
+              </p>
+              <p style={{ fontFamily: body, fontSize: 12.5, color: T.mut, margin: '3px 0 0' }}>
+                {t('home.distanceAway', { city: req.city, km: req.distance_km?.toFixed(1) })}
+              </p>
             </div>
             <ChevronRight size={18} color={T.faint} />
           </Card>
         ))
       ) : (
         <Card style={{ marginTop: 12 }}>
-          <p style={{ fontFamily: body, fontSize: 13, color: T.mut, margin: 0, textAlign: 'center' }}>No active requests near you right now.</p>
+          <p style={{ fontFamily: body, fontSize: 13, color: T.mut, margin: 0, textAlign: 'center' }}>{t('home.noRequests')}</p>
         </Card>
       )}
 

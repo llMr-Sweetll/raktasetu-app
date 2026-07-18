@@ -8,6 +8,7 @@ import Btn from '../components/Btn.jsx';
 import BottomNav from '../components/BottomNav.jsx';
 import api from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
+import { getLang, t } from '../i18n.js';
 
 const body = "'Public Sans', 'Segoe UI', system-ui, sans-serif";
 const display = "'Anek Latin', 'Segoe UI', system-ui, sans-serif";
@@ -20,6 +21,8 @@ export default function DonorAlert() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [responding, setResponding] = useState(false);
+  const [, bump] = useState(getLang());
+  useEffect(() => { bump(getLang()); }, []);
 
   useEffect(() => {
     fetchRequest();
@@ -31,9 +34,9 @@ export default function DonorAlert() {
       const payload = response.data || response;
       const found = payload.requests?.find(r => r.id === requestId);
       if (found) setRequest(found);
-      else setError('Request not found');
+      else setError(t('alert.notFound'));
     } catch (_err) {
-      setError('Failed to load request details');
+      setError(t('alert.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -63,8 +66,8 @@ export default function DonorAlert() {
     }
   };
 
-  if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: body }}>Loading...</div>;
-  if (!request) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: body, color: T.mut }}>Request not found</div>;
+  if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: body }}>{t('alert.loading')}</div>;
+  if (!request) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: body, color: T.mut }}>{t('alert.notFound')}</div>;
 
   const myGroup = user?.blood_group || 'Not set';
   const compatible = (GIVERS[request.blood_group] || []).includes(myGroup);
@@ -73,20 +76,20 @@ export default function DonorAlert() {
     <div style={{ padding: '18px 18px calc(90px + env(safe-area-inset-bottom))', maxWidth: 430, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <Radio size={16} color={T.arterial} />
-        <span style={{ fontFamily: display, fontWeight: 800, fontSize: 13, letterSpacing: '.12em', color: T.arterial }}>EMERGENCY PING</span>
+        <span style={{ fontFamily: display, fontWeight: 800, fontSize: 13, letterSpacing: '.12em', color: T.arterial }}>{t('alert.emergency')}</span>
       </div>
 
       <Card style={{ marginTop: 14, borderColor: '#F0BFC8', background: '#FFF9FA', padding: 18 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <p style={{ fontFamily: body, fontSize: 12, color: T.mut, margin: 0 }}>Patient needs</p>
+            <p style={{ fontFamily: body, fontSize: 12, color: T.mut, margin: 0 }}>{t('alert.patientNeeds')}</p>
             <p style={{ fontFamily: display, fontWeight: 800, fontSize: 40, lineHeight: 1, margin: '4px 0 0', color: T.arterial }}>{request.blood_group}</p>
           </div>
           <div style={{ textAlign: 'right' }}>
             <Chip tone="red">{request.urgency}</Chip>
-            <p style={{ fontFamily: display, fontWeight: 700, fontSize: 15, margin: '8px 0 0', color: T.ink }}>{request.units_needed} units</p>
+            <p style={{ fontFamily: display, fontWeight: 700, fontSize: 15, margin: '8px 0 0', color: T.ink }}>{t('alert.units', { n: request.units_needed })}</p>
             <p style={{ fontFamily: body, fontSize: 12, color: T.mut, margin: '2px 0 0', display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end' }}>
-              <Clock size={12} /> {request.needed_by ? new Date(request.needed_by).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'ASAP'}
+              <Clock size={12} /> {request.needed_by ? new Date(request.needed_by).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : t('alert.asap')}
             </p>
           </div>
         </div>
@@ -97,7 +100,9 @@ export default function DonorAlert() {
           <MapPin size={15} color={T.oxblood} />
           <div>
             <p style={{ fontFamily: display, fontWeight: 700, fontSize: 14.5, margin: 0, color: T.ink }}>{request.hospital_name}</p>
-            <p style={{ fontFamily: body, fontSize: 12, color: T.mut, margin: '1px 0 0' }}>{request.hospital_address} · {request.distance_km?.toFixed(1)} km from you</p>
+            <p style={{ fontFamily: body, fontSize: 12, color: T.mut, margin: '1px 0 0' }}>
+              {t('alert.fromYou', { address: request.hospital_address, km: request.distance_km?.toFixed(1) })}
+            </p>
           </div>
         </div>
 
@@ -105,21 +110,21 @@ export default function DonorAlert() {
           marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
           background: '#fff', border: `1px dashed ${T.line}`, borderRadius: 12, padding: '10px 12px',
         }}>
-          <span style={{ fontFamily: display, fontWeight: 800, color: T.oxblood, fontSize: 15 }}>Your {myGroup}</span>
+          <span style={{ fontFamily: display, fontWeight: 800, color: T.oxblood, fontSize: 15 }}>{t('alert.yourGroup', { group: myGroup })}</span>
           <ArrowRight size={15} color={T.faint} />
-          <span style={{ fontFamily: display, fontWeight: 800, color: T.ink, fontSize: 15 }}>Patient {request.blood_group}</span>
-          <Chip tone={compatible ? 'green' : 'red'}>{compatible ? 'Compatible' : 'Not compatible'}</Chip>
+          <span style={{ fontFamily: display, fontWeight: 800, color: T.ink, fontSize: 15 }}>{t('alert.patientGroup', { group: request.blood_group })}</span>
+          <Chip tone={compatible ? 'green' : 'red'}>{compatible ? t('alert.compatible') : t('alert.notCompatible')}</Chip>
         </div>
       </Card>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16 }}>
         <Btn kind="critical" full onClick={handleAccept} disabled={responding || !compatible}>
-          <Droplet size={16} /> Accept, I can donate
+          <Droplet size={16} /> {t('alert.accept')}
         </Btn>
-        <Btn kind="ghost" full onClick={handleDecline} disabled={responding}>Can't donate right now</Btn>
+        <Btn kind="ghost" full onClick={handleDecline} disabled={responding}>{t('alert.decline')}</Btn>
       </div>
       <p style={{ fontFamily: body, fontSize: 11.5, color: T.faint, textAlign: 'center', marginTop: 12 }}>
-        Declining never affects your credits. {request.donors_pinged ?? 'No count available'} compatible donors were pinged.
+        {t('alert.declineNote', { count: request.donors_pinged ?? '—' })}
       </p>
       {error && <p style={{ fontFamily: body, fontSize: 12, color: T.arterial, textAlign: 'center', marginTop: 8 }}>{error}</p>}
       <BottomNav />

@@ -5,6 +5,7 @@ import { T } from '../theme.js';
 import Card from '../components/Card.jsx';
 import BottomNav from '../components/BottomNav.jsx';
 import api from '../api/client.js';
+import { t } from '../i18n.js';
 import { useAuth } from '../hooks/useAuth.js';
 import {
   enablePushNotifications,
@@ -63,6 +64,7 @@ export default function DonorProfile() {
   return (
     <div style={{ padding: '18px 18px calc(90px + env(safe-area-inset-bottom))', maxWidth: 430, margin: '0 auto' }}>
       <h2 style={{ fontFamily: display, fontWeight: 800, fontSize: 22, margin: 0, color: T.ink }}>Profile</h2>
+      <p style={{ fontFamily: body, fontSize: 12.5, color: T.mut, margin: '8px 0 0' }}>{t('profile.kannadaNote')}</p>
 
       <Card style={{ marginTop: 14, display: 'flex', gap: 14, alignItems: 'center' }}>
         <div style={{ width: 52, height: 52, borderRadius: '50%', background: T.arterialSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: display, fontWeight: 800, color: T.oxblood, fontSize: 18 }}>

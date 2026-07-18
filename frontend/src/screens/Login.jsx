@@ -8,6 +8,7 @@ import { GOOGLE_CLIENT_ID } from '../config.js';
 import LazyBloodBridge from '../components/LazyBloodBridge.jsx';
 import { roleHome, parseAuthRole } from '../lib/roleHome.js';
 import usePageMeta from '../hooks/usePageMeta.js';
+import { getLang, t, toggleLang } from '../i18n.js';
 
 const body = "'Public Sans', 'Segoe UI', system-ui, sans-serif";
 const display = "'Anek Latin', 'Segoe UI', system-ui, sans-serif";
@@ -37,6 +38,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [googleReady, setGoogleReady] = useState(false);
   const googleBtnRef = useRef(null);
+  const [lang, setLangState] = useState(getLang());
   const loginGoogleRef = useRef(loginWithGoogle);
   const navigateRef = useRef(navigate);
 
@@ -102,7 +104,7 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!phone || !password) { setError('Please enter phone/email and password'); return; }
+    if (!phone || !password) { setError(t('login.missingFields')); return; }
     setLoading(true);
     try {
       const user = await login(phone, password);
@@ -114,7 +116,7 @@ export default function Login() {
         navigate('/hospital-pending');
         return;
       }
-      setError(_err.response?.data?.error?.message || _err.response?.data?.error || 'Login failed. Please try again.');
+      setError(_err.response?.data?.error?.message || _err.response?.data?.error || t('login.failed'));
     } finally {
       setLoading(false);
     }
@@ -155,12 +157,18 @@ export default function Login() {
             marginBottom: 20,
             minHeight: 44,
           }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Link to="/" style={{
               fontFamily: body, fontSize: 13, color: '#A89B96', textDecoration: 'none',
               display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '8px 0',
             }}>
               ← RaktaSetu
             </Link>
+            <button type="button" onClick={() => setLangState(toggleLang())} style={{
+              fontFamily: body, fontSize: 12, color: '#A89B96', background: 'none', border: '1px solid rgba(242,232,230,0.25)',
+              borderRadius: 999, padding: '6px 10px', cursor: 'pointer', minHeight: 36,
+            }}>{lang === 'en' ? t('home.langChip') : t('home.langChipActive')}</button>
+            </div>
             {!isHospital ? (
               <Link
                 to="/login?role=hospital"
@@ -177,7 +185,7 @@ export default function Login() {
                   whiteSpace: 'nowrap',
                 }}
               >
-                Hospital login
+                {t('login.hospitalLogin')}
               </Link>
             ) : (
               <Link
@@ -193,7 +201,7 @@ export default function Login() {
                   padding: '8px 0',
                 }}
               >
-                Donor sign in
+                {t('login.donorLogin')}
               </Link>
             )}
           </div>
@@ -207,12 +215,10 @@ export default function Login() {
             </div>
           </div>
           <h1 style={{ fontFamily: display, fontWeight: 800, fontSize: 22, textAlign: 'center', color: '#F2E8E6', margin: '0 0 4px' }}>
-            {isHospital ? 'Hospital sign in' : 'Donor sign in'}
+            {isHospital ? t('login.hospitalTitle') : t('login.donorTitle')}
           </h1>
           <p style={{ fontFamily: body, fontSize: 13, color: '#A89B96', textAlign: 'center', margin: '0 0 22px' }}>
-            {isHospital
-              ? 'Access your hospital console'
-              : 'Sign in to answer blood requests nearby'}
+            {isHospital ? t('login.hospitalSubtitle') : t('login.donorSubtitle')}
           </p>
 
           <form onSubmit={handleSubmit}>
@@ -228,9 +234,9 @@ export default function Login() {
             <div style={{ position: 'relative', marginBottom: 12 }}>
               <Phone size={16} color="#A89B96" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
               <input
-                type="text" placeholder="Phone or email" value={phone} onChange={(e) => setPhone(e.target.value)}
+                type="text" placeholder={t('login.phone')} value={phone} onChange={(e) => setPhone(e.target.value)}
                 autoComplete="username"
-                aria-label="Phone or email"
+                aria-label={t('login.phone')}
                 required
                 className="rs-dark-field"
                 style={{
@@ -243,9 +249,9 @@ export default function Login() {
             <div style={{ position: 'relative', marginBottom: 18 }}>
               <Lock size={16} color="#A89B96" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
               <input
-                type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)}
+                type="password" placeholder={t('login.password')} value={password} onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
-                aria-label="Password"
+                aria-label={t('login.password')}
                 required
                 className="rs-dark-field"
                 style={{
@@ -255,14 +261,14 @@ export default function Login() {
                 }}
               />
             </div>
-            <Btn kind="primary" full disabled={loading}>{loading ? 'Signing in...' : 'Sign in'}</Btn>
+            <Btn kind="primary" full disabled={loading}>{loading ? t('login.signingIn') : t('login.submit')}</Btn>
           </form>
 
           {!isHospital && GOOGLE_CLIENT_ID ? (
             <div style={{ marginTop: 18 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 12px' }}>
                 <div style={{ flex: 1, height: 1, background: 'rgba(242,232,230,0.15)' }} />
-                <span style={{ fontFamily: body, fontSize: 12, color: '#6F6963' }}>or</span>
+                <span style={{ fontFamily: body, fontSize: 12, color: '#6F6963' }}>{t('login.or')}</span>
                 <div style={{ flex: 1, height: 1, background: 'rgba(242,232,230,0.15)' }} />
               </div>
               <p style={{ fontFamily: body, fontSize: 12, color: '#A89B96', lineHeight: 1.5, margin: '0 0 12px', textAlign: 'center' }}>
@@ -279,12 +285,12 @@ export default function Login() {
           ) : null}
 
           <p style={{ fontFamily: body, fontSize: 13, color: '#A89B96', textAlign: 'center', marginTop: 14 }}>
-            New here?{' '}
+            {t('login.newHere')}{' '}
             <Link
               to={isHospital ? '/register?role=hospital' : '/register'}
               style={{ color: '#F2E8E6', fontWeight: 700, textDecoration: 'none' }}
             >
-              Create an account
+              {t('login.createAccount')}
             </Link>
           </p>
         </div>

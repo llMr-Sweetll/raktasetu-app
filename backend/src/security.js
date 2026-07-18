@@ -2,16 +2,16 @@ export function buildHelmetOptions(isProduction = false) {
   const directives = {
     defaultSrc: ["'self'"],
     baseUri: ["'self'"],
-    connectSrc: ["'self'", 'https://accounts.google.com', 'wss:'],
+    connectSrc: ["'self'", 'https://accounts.google.com'],
     fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
     formAction: ["'self'"],
     frameAncestors: ["'none'"],
     frameSrc: ["'self'", 'https://accounts.google.com'],
-    imgSrc: ["'self'", 'data:', 'blob:', 'https://*.googleusercontent.com', 'https://unpkg.com'],
+    imgSrc: ["'self'", 'data:', 'blob:', 'https://*.googleusercontent.com'],
     manifestSrc: ["'self'"],
     objectSrc: ["'none'"],
     scriptSrc: ["'self'", "'unsafe-inline'", 'https://accounts.google.com'],
-    styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://accounts.google.com', 'https://unpkg.com'],
+    styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://accounts.google.com'],
     workerSrc: ["'self'", 'blob:'],
   };
 

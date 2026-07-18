@@ -8,7 +8,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       minify: false,
-      includeAssets: ['drop-icon.svg', 'push-handler.js'],
+      includeAssets: ['drop-icon.svg', 'icon-192.png', 'icon-512.png', 'og-card-1200x630.png', 'push-handler.js'],
       manifest: {
         name: 'RaktaSetu',
         short_name: 'RaktaSetu',
@@ -23,9 +23,9 @@ export default defineConfig({
         theme_color: '#7A1626',
         orientation: 'any',
         icons: [
-          { src: '/drop-icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
-          { src: '/drop-icon.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'maskable' },
-          { src: '/drop-icon.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'maskable' },
+          { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       workbox: {

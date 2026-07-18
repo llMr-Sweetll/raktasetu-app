@@ -4,6 +4,7 @@ import Card from '../components/Card.jsx';
 import Btn from '../components/Btn.jsx';
 import BottomNav from '../components/BottomNav.jsx';
 import api from '../api/client.js';
+import { t } from '../i18n.js';
 
 const body = "'Public Sans', 'Segoe UI', system-ui, sans-serif";
 const display = "'Anek Latin', 'Segoe UI', system-ui, sans-serif";
@@ -25,39 +26,39 @@ export default function DonorCredits() {
       setBalance(payload.balance || 0);
       setLedger(payload.history || []);
     } catch (_err) {
-      setError('Failed to load credits');
+      setError(t('credits.loadFailed'));
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: body }}>Loading...</div>;
+  if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: body }}>{t('credits.loading')}</div>;
 
   return (
     <div style={{ padding: '18px 18px calc(90px + env(safe-area-inset-bottom))', maxWidth: 430, margin: '0 auto' }}>
-      <h2 style={{ fontFamily: display, fontWeight: 800, fontSize: 22, margin: 0, color: T.ink }}>Credits</h2>
-      <p style={{ fontFamily: body, fontSize: 13, color: T.mut, margin: '4px 0 14px' }}>Your digital replacement card, with no paper to lose.</p>
+      <h2 style={{ fontFamily: display, fontWeight: 800, fontSize: 22, margin: 0, color: T.ink }}>{t('credits.title')}</h2>
+      <p style={{ fontFamily: body, fontSize: 13, color: T.mut, margin: '4px 0 14px' }}>{t('credits.subtitle')}</p>
 
       <Card style={{ background: T.oxblood, borderColor: T.oxbloodDark }}>
-        <p style={{ fontFamily: body, fontSize: 11.5, color: '#E8B9C2', margin: 0, textTransform: 'uppercase', letterSpacing: '.08em' }}>Balance</p>
+        <p style={{ fontFamily: body, fontSize: 11.5, color: '#E8B9C2', margin: 0, textTransform: 'uppercase', letterSpacing: '.08em' }}>{t('credits.balance')}</p>
         <p style={{ fontFamily: display, fontWeight: 800, fontSize: 42, color: '#fff', margin: '2px 0 0', lineHeight: 1 }}>{balance}</p>
         <p style={{ fontFamily: body, fontSize: 12.5, color: '#E8B9C2', margin: '10px 0 0' }}>
-          100 credits waive 1 replacement unit for you or up to 4 registered family members.
+          {t('credits.rule')}
         </p>
       </Card>
 
       <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-        <Btn kind="ghost" small full>Redeem for family</Btn>
-        <Btn kind="ghost" small full>Add family member</Btn>
+        <Btn kind="ghost" small full>{t('credits.redeem')}</Btn>
+        <Btn kind="ghost" small full>{t('credits.addFamily')}</Btn>
       </div>
 
-      <p style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '.06em', margin: '18px 0 8px' }}>Ledger</p>
+      <p style={{ fontFamily: body, fontSize: 11, color: T.faint, textTransform: 'uppercase', letterSpacing: '.06em', margin: '18px 0 8px' }}>{t('credits.ledger')}</p>
 
       {error && <p style={{ fontFamily: body, fontSize: 12, color: T.arterial }}>{error}</p>}
 
       {ledger.length === 0 ? (
         <Card>
-          <p style={{ fontFamily: body, fontSize: 13, color: T.mut, margin: 0, textAlign: 'center' }}>No credit transactions yet. Donate to earn credits!</p>
+          <p style={{ fontFamily: body, fontSize: 13, color: T.mut, margin: 0, textAlign: 'center' }}>{t('credits.empty')}</p>
         </Card>
       ) : (
         ledger.map((r) => (
