@@ -56,7 +56,7 @@ export default function Console() {
         <Logo size={22} dark />
         <div style={{ textAlign: 'right' }}>
           <p style={{ fontFamily: body, fontSize: 12, color: T.consoleMut, margin: 0 }}>{user?.name || 'Hospital'}</p>
-          <p style={{ fontFamily: body, fontSize: 10.5, color: '#5C6270', margin: 0 }}>Blood bank console</p>
+          <p style={{ fontFamily: body, fontSize: 10.5, color: T.consoleMut, margin: 0 }}>Blood bank console</p>
         </div>
       </div>
 

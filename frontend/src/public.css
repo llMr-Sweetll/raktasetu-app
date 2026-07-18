@@ -331,7 +331,7 @@
 .public-hero__note {
   max-width: 540px;
   margin: 22px 0 0;
-  color: #9f918c;
+  color: var(--rs-light-muted);
   font-size: 12px;
   line-height: 1.55;
 }
@@ -621,7 +621,7 @@
   display: flex;
   justify-content: space-between;
   gap: 18px;
-  color: #82756f;
+  color: var(--rs-light-muted);
   font-size: 11px;
   line-height: 1.6;
 }
