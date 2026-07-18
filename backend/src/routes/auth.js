@@ -333,7 +333,8 @@ router.post('/refresh', async (req, res) => {
          FROM refresh_tokens rt
          JOIN users u ON u.id = rt.user_id
          LEFT JOIN hospitals h ON h.user_id = u.id
-         WHERE rt.token_hash = $1 FOR UPDATE`,
+         WHERE rt.token_hash = $1
+         FOR UPDATE OF rt`,
         [hashRefreshToken(refreshToken)],
       );
       const record = found.rows[0];
