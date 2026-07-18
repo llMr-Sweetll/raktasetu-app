@@ -40,6 +40,11 @@ Thumbs.db
 
 # Test artifacts
 coverage/
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+**/test-results/
+**/playwright-report/
 
 # Temporary files
 *.tmp

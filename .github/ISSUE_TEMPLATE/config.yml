@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Operational readiness
+    url: https://github.com/Chandrashekhar-Hegde/raktasetu-app/blob/main/docs/operational-readiness.md
+    about: Invite cohort, retention, and incident runbooks
+  - name: Live health
+    url: https://raktasetu-production.up.railway.app/api/health
+    about: Production /api/health JSON

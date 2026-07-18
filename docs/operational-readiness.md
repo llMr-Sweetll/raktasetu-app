@@ -18,7 +18,7 @@
 - `RETENTION_DATABASE_URL`: owner or dedicated maintenance role used only by the scheduled retention service (not the web service).
 - Migrations are checksum-tracked in `schema_migrations`. Never edit an applied migration.
 - Take a provider backup or restore point before production schema changes. Test restoration in a non-production branch before relying on it.
-- Prefer GitHub Actions `Deploy to Railway` once `RAILWAY_TOKEN` and `MIGRATION_DATABASE_URL` repository secrets are set. `railway up` from a trusted workstation is a fallback only.
+- Default CD: Railway GitHub App auto-deploys service `raktasetu` on push to `main`. Actions always migrate with `MIGRATION_DATABASE_URL`. Optional Actions `railway up` needs dashboard-created Project Token secret `RAILWAY_TOKEN` (see `docs/ops/ci-cd.md`). Workstation `railway up` remains a break-glass fallback.
 
 ## Admin bootstrap (no public demo admin)
 
@@ -47,7 +47,7 @@ Run `npm --prefix backend run retention` daily in a separate Railway cron servic
 
 Production cron service `raktasetu-retention` (configured 2026-07-18):
 
-- GitHub source: `llMr-Sweetll/raktasetu-app` @ `main`
+- GitHub source: `Chandrashekhar-Hegde/raktasetu-app` @ `main`
 - Start command: `npm --prefix backend run retention`
 - Cron schedule: `0 3 * * *` (daily 03:00 UTC); next run shown in Railway as `nextCronRunAt`
 - Variables on the cron service only: `RETENTION_DATABASE_URL` (Neon owner/maintenance), `NODE_ENV=production`

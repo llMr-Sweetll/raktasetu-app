@@ -10,6 +10,7 @@ on:
     branches: [main]
     paths:
       - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
 
 jobs:
   lint-and-test:
@@ -44,16 +45,15 @@ jobs:
 
       - name: Start server (health check)
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          # Health is in-process and does not need a real database.
+          # Do not wire MIGRATION_DATABASE_URL here (app boot refuses it in production).
+          JWT_SECRET: ci-health-check-not-for-production
           NODE_ENV: test
           PORT: 3001
         run: |
-          # Start server in background
           node src/server.js &
           SERVER_PID=$!
           sleep 5
-          # Test health endpoint
           curl -sf http://localhost:3001/api/health || (echo "Health check failed" && kill $SERVER_PID && exit 1)
           kill $SERVER_PID || true
         timeout-minutes: 2

@@ -1,17 +1,19 @@
-name: Frontend Build Check
+name: Frontend CI
 
-# GitHub Pages hosting retired — app is served from Railway (Express + frontend/dist).
-# This workflow only verifies the frontend still builds.
+# GitHub Pages / Cloudflare hosting retired — SPA is served from Railway (Express + frontend/dist).
+# This workflow verifies lint, unit tests, production build, and Playwright smoke tests.
 
 on:
   push:
     branches: [main]
     paths:
       - 'frontend/**'
-      - '.github/workflows/frontend-deploy.yml'
+      - '.github/workflows/frontend-ci.yml'
   pull_request:
+    branches: [main]
     paths:
       - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
 
 jobs:
   build:
@@ -48,6 +50,7 @@ jobs:
           VITE_API_URL: ''
 
       - name: Install Playwright browsers
+        # mobile project uses WebKit (iPhone 13 device); desktop uses Chromium
         run: npx playwright install --with-deps chromium webkit
 
       - name: Public responsive smoke tests

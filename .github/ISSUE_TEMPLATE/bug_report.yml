@@ -1,0 +1,35 @@
+name: Bug report
+description: Report a defect in the app, API, or deploy pipeline
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Expected vs actual behavior
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: e.g. production https://raktasetu-production.up.railway.app/ or local
+      placeholder: production
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Logs / screenshots
+      description: Redact tokens, passwords, and personal data

@@ -67,7 +67,7 @@ export function createApp({ env = process.env } = {}) {
       success: true,
       data: {
         status: 'healthy',
-        version: '2.0.3',
+        version: '2.0.4',
         timestamp: new Date().toISOString(),
       },
     });

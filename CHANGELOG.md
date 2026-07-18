@@ -2,6 +2,20 @@
 
 All notable changes to RaktaSetu are documented in this file.
 
+## [2.0.4] — 2026-07-18
+
+### Ops
+
+- CI/CD no longer fails when `RAILWAY_TOKEN` is absent: migrations still run; CLI deploy skips green; app ships via Railway GitHub App auto-deploy
+- Renamed Frontend workflow to `Frontend CI` (GitHub Pages path retired in name and docs)
+- Backend CI health check uses an in-CI JWT placeholder (no unused `DATABASE_URL`/`JWT_SECRET` GitHub secrets)
+- Living-repo hygiene: `CONTRIBUTING.md`, `docs/README.md`, `docs/ops/ci-cd.md`, PR/issue templates; removed stale root `CI_CD_GUIDE.md` (wrong remote / Pages)
+- Optional path A documented: create a Railway Project Token in the dashboard, then `gh secret set RAILWAY_TOKEN`
+
+### Notes
+
+- `RAILWAY_TOKEN` was not set by automation (CLI/OAuth cannot mint a durable project token). Paste one only if you want Actions `railway up` in addition to GitHub App deploys.
+
 ## [2.0.3] — 2026-07-18
 
 ### Security
@@ -27,7 +41,7 @@ All notable changes to RaktaSetu are documented in this file.
 - Railway cron service `raktasetu-retention` scheduled daily at `0 3 * * *` with `RETENTION_DATABASE_URL` only on that service
 - Access token sample TTL documented as `30m` (refresh tokens remain the long-lived path)
 - Frontend CI installs Chromium and WebKit for Playwright mobile/desktop projects
-- GitHub→Railway deploy still needs repository secret `RAILWAY_TOKEN` (dashboard token; CLI cannot mint one). `MIGRATION_DATABASE_URL` secret already present.
+- `MIGRATION_DATABASE_URL` GitHub secret present for CI migrations; optional `RAILWAY_TOKEN` for Actions CLI deploy (see 2.0.4)
 
 ### Notes
 

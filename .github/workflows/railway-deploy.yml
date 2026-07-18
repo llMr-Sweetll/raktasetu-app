@@ -1,4 +1,9 @@
-name: Deploy to Railway
+# Migrations always run in CI with the owner-only secret.
+# App deploys come from the Railway GitHub App (source-connected service).
+# Optional: set repository secret RAILWAY_TOKEN (Railway Project Token) to also
+# trigger `railway up` from Actions. CLI/API cannot mint that token.
+
+name: Migrate and Deploy
 
 on:
   push:
@@ -12,24 +17,55 @@ on:
       - 'railway.json'
       - 'nixpacks.toml'
       - '.github/workflows/railway-deploy.yml'
+  workflow_dispatch:
 
 jobs:
-  deploy:
+  migrate-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ./backend/package-lock.json
 
       - name: Apply database migrations
-        run: npm ci --prefix backend && npm --prefix backend run db:migrate
         env:
           NODE_ENV: production
           MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+        run: |
+          if [ -z "$MIGRATION_DATABASE_URL" ]; then
+            echo "::error::MIGRATION_DATABASE_URL repository secret is required (owner DB URL; CI only)."
+            echo "Never set MIGRATION_DATABASE_URL on the Railway app service — boot refuses."
+            exit 1
+          fi
+          npm ci --prefix backend
+          npm --prefix backend run db:migrate
 
-      - name: Deploy to Railway
-        run: railway up --detach
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Optional CLI deploy (requires RAILWAY_TOKEN)
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          # Non-secret Railway resource IDs for project-scoped tokens / linking
+          RAILWAY_PROJECT_ID: 9ae87412-e839-4967-b35d-888845b6184c
+          RAILWAY_ENVIRONMENT_ID: 97a7d7c3-dd82-4b5b-bf62-991e3728e5e3
+          RAILWAY_SERVICE_ID: 066c4091-5df1-45ff-b65c-73f17b27cf92
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "RAILWAY_TOKEN is not set — skipping Actions CLI deploy (workflow stays green)."
+            echo "Production app deploys via Railway GitHub App on push to main."
+            echo "Live: https://raktasetu-production.up.railway.app/"
+            echo ""
+            echo "To enable Actions CLI deploy later (optional):"
+            echo "  1. Railway dashboard → project raktasetu → Settings → Tokens → New Project Token"
+            echo "  2. gh secret set RAILWAY_TOKEN   # paste token; do not commit it"
+            echo "Never put MIGRATION_DATABASE_URL on the Railway app service."
+            exit 0
+          fi
+          railway up --detach --service "$RAILWAY_SERVICE_ID"
