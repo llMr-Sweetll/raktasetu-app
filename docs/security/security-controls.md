@@ -34,3 +34,21 @@ This document records implemented controls and known boundaries. It is not a cla
 ## Operational boundary
 
 The MVP records whether a contact has been verified. It does not claim SMS ownership verification, hospital accreditation, clinical eligibility, emergency dispatch, or regulatory certification. Administrators must verify hospital documentation through the documented manual process before approval.
+
+## Production operations (post-MVP)
+
+- Admin bootstrap uses `backend/scripts/bootstrap-admin.js` with `ALLOW_ADMIN_BOOTSTRAP=1`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD` (min 16 chars) against `MIGRATION_DATABASE_URL`. Do not keep bootstrap passwords in Railway service variables after the first successful login.
+- Runtime database role is `raktasetu_rls` (`DB_RUNTIME_ROLE`); RLS is forced and that role has `rolbypassrls = false`.
+- Push reports configured via `/api/push/status` when VAPID env vars are present. Treat historically exposed VAPID material as rotate-when-convenient; rotation requires donors to re-subscribe.
+- GitHub Actions deploy (`.github/workflows/railway-deploy.yml`) requires repository secrets `RAILWAY_TOKEN` and `MIGRATION_DATABASE_URL`. The Railway CLI cannot mint a project token non-interactively; create a token in the Railway dashboard (Account/Project → Tokens), then:
+
+```bash
+gh secret set RAILWAY_TOKEN
+gh secret set MIGRATION_DATABASE_URL
+```
+
+- Neon branch `mvp-pre-role-switch-2026-07-16` is a pre-cutover safety snapshot. Delete it from Neon only after you no longer need rollback to that point-in-time.
+
+## Open hardening (not blocking current MVP)
+
+Phase 2/3 remediation items that remain for sustained general availability (not claimed complete here): broader staged IDOR/concurrency evidence for hospital mutation and donation paths, authenticated Socket.IO cross-role emission tests, device-level push delivery proof, retention job operational schedule, and physical mobile viewport sign-off. Keep donation verification, realtime mutation, and general push scoped to the controls already enforced server-side; do not market them as fully Phase 3-certified.

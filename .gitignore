@@ -50,3 +50,6 @@ worker.js
 
 # Railway local link metadata
 .railway/
+
+# Cursor local IDE metadata
+.cursor/
