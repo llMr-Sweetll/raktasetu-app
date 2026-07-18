@@ -47,10 +47,12 @@ Run `npm --prefix backend run retention` daily in a separate Railway cron servic
 
 Suggested Railway cron service:
 
+- Empty service shell `raktasetu-retention` was created in the production environment (offline until configured).
+- Connect the same GitHub repo/source as the web service, or deploy the app tree so `backend/` is present.
 - Start command: `npm --prefix backend run retention`
-- Cron schedule: `0 3 * * *` (daily 03:00 UTC)
-- Variables: `RETENTION_DATABASE_URL` (owner/maintenance), `NODE_ENV=production`
-- Do not attach the cron variables to the web service
+- Cron schedule: `0 3 * * *` (daily 03:00 UTC) in the Railway service settings
+- Variables (on the cron service only): `RETENTION_DATABASE_URL` (owner/maintenance), `NODE_ENV=production`
+- Do not attach the owner URL to the web service (boot refuses `MIGRATION_DATABASE_URL` there)
 
 - Expired Google onboarding records: one day after expiry.
 - Expired/revoked refresh tokens: seven/thirty days.
