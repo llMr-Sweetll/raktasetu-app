@@ -34,7 +34,7 @@ export default function DonorCredits() {
   if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: body }}>Loading...</div>;
 
   return (
-    <div style={{ padding: '18px 18px 90px', maxWidth: 430, margin: '0 auto' }}>
+    <div style={{ padding: '18px 18px calc(90px + env(safe-area-inset-bottom))', maxWidth: 430, margin: '0 auto' }}>
       <h2 style={{ fontFamily: display, fontWeight: 800, fontSize: 22, margin: 0, color: T.ink }}>Credits</h2>
       <p style={{ fontFamily: body, fontSize: 13, color: T.mut, margin: '4px 0 14px' }}>Your digital replacement card, with no paper to lose.</p>
 

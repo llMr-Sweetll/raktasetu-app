@@ -34,7 +34,7 @@ export default function DonorHistory() {
   if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: body }}>Loading...</div>;
 
   return (
-    <div style={{ padding: '18px 18px 90px', maxWidth: 430, margin: '0 auto' }}>
+    <div style={{ padding: '18px 18px calc(90px + env(safe-area-inset-bottom))', maxWidth: 430, margin: '0 auto' }}>
       <button onClick={() => navigate('/profile')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16, fontFamily: body, fontSize: 13, color: T.mut }}>
         <ArrowLeft size={16} /> Back to profile
       </button>

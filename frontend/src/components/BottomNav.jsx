@@ -25,6 +25,7 @@ export default function BottomNav() {
       background: 'rgba(255,255,255,0.93)', backdropFilter: 'blur(6px)',
       position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
       width: '100%', maxWidth: 430, zIndex: 100,
+      paddingBottom: 'env(safe-area-inset-bottom)',
     }}>
       <NavItem icon={<Home />} label="Home" active={isActive('/home')} onClick={() => navigate('/home')} />
       <NavItem icon={<Bell />} label="Requests" active={isActive('/requests') || isActive('/alert')} onClick={() => navigate('/requests')} />

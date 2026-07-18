@@ -38,7 +38,7 @@ export default function DonorRequests() {
   if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: body }}>Loading...</div>;
 
   return (
-    <div style={{ padding: '18px 18px 90px', maxWidth: 430, margin: '0 auto' }}>
+    <div style={{ padding: '18px 18px calc(90px + env(safe-area-inset-bottom))', maxWidth: 430, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ fontFamily: display, fontWeight: 800, fontSize: 22, margin: 0, color: T.ink }}>Nearby requests</h2>
         <div style={{ display: 'flex', gap: 6, background: T.card, border: `1px solid ${T.line}`, borderRadius: 10, padding: 3 }}>

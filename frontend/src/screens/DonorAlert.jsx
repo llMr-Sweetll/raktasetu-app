@@ -70,7 +70,7 @@ export default function DonorAlert() {
   const compatible = (GIVERS[request.blood_group] || []).includes(myGroup);
 
   return (
-    <div style={{ padding: '18px 18px 90px', maxWidth: 430, margin: '0 auto' }}>
+    <div style={{ padding: '18px 18px calc(90px + env(safe-area-inset-bottom))', maxWidth: 430, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <Radio size={16} color={T.arterial} />
         <span style={{ fontFamily: display, fontWeight: 800, fontSize: 13, letterSpacing: '.12em', color: T.arterial }}>EMERGENCY PING</span>

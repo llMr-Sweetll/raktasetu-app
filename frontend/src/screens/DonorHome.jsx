@@ -69,7 +69,7 @@ export default function DonorHome() {
   const requests = dashboard?.nearby_requests || [];
 
   return (
-    <div style={{ padding: '18px 18px 90px', maxWidth: 430, margin: '0 auto' }}>
+    <div style={{ padding: '18px 18px calc(90px + env(safe-area-inset-bottom))', maxWidth: 430, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Logo />
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
