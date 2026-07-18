@@ -4,8 +4,9 @@ import pg from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 
 const { Client } = pg;
+const hasTestDatabase = Boolean(process.env.TEST_DATABASE_URL?.startsWith('postgres'));
 
-test('RLS denies missing context and isolates users', { skip: !process.env.TEST_DATABASE_URL }, async () => {
+test('RLS denies missing context and isolates users', { skip: !hasTestDatabase }, async () => {
   const client = new Client({
     connectionString: process.env.TEST_DATABASE_URL,
     ssl: process.env.TEST_DATABASE_URL.includes('localhost') ? false : { rejectUnauthorized: false },

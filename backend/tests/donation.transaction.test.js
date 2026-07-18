@@ -15,7 +15,8 @@ function fakeClient({ responseStatus = 'arrived', existingDonation = false, fail
         return responseStatus === 'missing' ? { rows: [] } : { rows: [{ id: 'response-a', status: responseStatus }] };
       }
       if (sql.includes('SELECT id FROM donations')) return { rows: existingDonation ? [{ id: 'donation-old' }] : [] };
-      if (sql.includes('SELECT blood_group FROM users')) return { rows: [{ blood_group: 'O+' }] };
+      if (sql.includes('hospital_donor_blood_group')) return { rows: [{ blood_group: 'O+' }] };
+      if (sql.includes('hospital_record_donor_donation')) return { rows: [{}] };
       if (failCredit && sql.includes('INSERT INTO credits')) throw new Error('credit failed');
       if (sql.includes('INSERT INTO')) state.inserts.push({ sql, params });
       if (sql.includes('UPDATE')) state.updates.push({ sql, params });

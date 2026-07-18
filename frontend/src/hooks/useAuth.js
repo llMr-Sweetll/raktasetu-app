@@ -88,10 +88,19 @@ function useAuthState() {
   const linkGoogle = async ({ identifier, password }) => {
     const idToken = sessionStorage.getItem('google_link_token');
     if (!idToken) throw new Error('Google linking session expired');
-    const donor = await login(identifier, password);
+    // Defer setUser until link succeeds so /account-link is not raced away by App redirects.
+    const payload = identifier.includes('@')
+      ? { email: identifier, password }
+      : { phone: identifier, password };
+    const { data } = await api.post('/auth/login', payload);
+    const session = data.data || data;
+    if (!session?.token) throw new Error('Login failed');
+    localStorage.setItem('token', session.token);
+    if (session.refresh_token) localStorage.setItem('refresh_token', session.refresh_token);
     await api.post('/auth/google/link', { id_token: idToken, password });
     sessionStorage.removeItem('google_link_token');
-    return donor;
+    setUser(session.user);
+    return session.user;
   };
 
   const logout = async () => {

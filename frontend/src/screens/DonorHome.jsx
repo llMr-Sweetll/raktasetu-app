@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, Droplet, CheckCircle2, ChevronRight } from 'lucide-react';
 import { T } from '../theme.js';
@@ -8,6 +8,7 @@ import Card from '../components/Card.jsx';
 import BottomNav from '../components/BottomNav.jsx';
 import api from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
+import { useSocket } from '../hooks/useSocket.js';
 
 const body = "'Public Sans', 'Segoe UI', system-ui, sans-serif";
 const display = "'Anek Latin', 'Segoe UI', system-ui, sans-serif";
@@ -21,10 +22,8 @@ export default function DonorHome() {
   const [error, setError] = useState('');
   const [toggleLoading, setToggleLoading] = useState(false);
   const [lang, setLang] = useState('English');
-
-  useEffect(() => {
-    fetchDashboard();
-  }, []);
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
 
   const fetchDashboard = async () => {
     try {
@@ -39,6 +38,18 @@ export default function DonorHome() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchDashboard();
+  }, []);
+
+  useSocket({
+    blood_request: (payload) => {
+      if (payload?.request_id) {
+        navigateRef.current(`/alert/${payload.request_id}`);
+      }
+    },
+  });
 
   const toggleOnCall = async () => {
     setToggleLoading(true);

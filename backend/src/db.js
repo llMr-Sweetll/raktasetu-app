@@ -2,12 +2,13 @@ import pg from 'pg';
 const { Pool } = pg;
 import dotenv from 'dotenv';
 import { AsyncLocalStorage } from 'async_hooks';
+import { postgresSslConfig } from './db/ssl.js';
 
 dotenv.config();
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false },
+  ssl: postgresSslConfig(process.env.DATABASE_URL),
   max: Number(process.env.DB_POOL_MAX || 10),
   statement_timeout: Number(process.env.DB_STATEMENT_TIMEOUT_MS || 10000),
   idle_in_transaction_session_timeout: 10000,

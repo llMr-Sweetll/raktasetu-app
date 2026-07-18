@@ -109,6 +109,11 @@ export default function Login() {
       // Destination comes from the actual role. Ignore query redirects.
       navigate(roleHome(user));
     } catch (_err) {
+      const code = _err.response?.data?.error?.code;
+      if (code === 'HOSPITAL_APPROVAL_PENDING') {
+        navigate('/hospital-pending');
+        return;
+      }
       setError(_err.response?.data?.error?.message || _err.response?.data?.error || 'Login failed. Please try again.');
     } finally {
       setLoading(false);

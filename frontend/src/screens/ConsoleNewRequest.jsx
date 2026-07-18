@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Minus, Radio, AlertTriangle, Users, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { T, GIVERS, RARE, GROUPS } from '../theme.js';
@@ -17,30 +17,23 @@ export default function ConsoleNewRequest() {
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [reach, setReach] = useState(0);
+  const [donorsNotified, setDonorsNotified] = useState(0);
 
   const rare = RARE.includes(group);
   const effectiveRadius = rare ? 25 : radius;
-
-  useEffect(() => {
-    const donorsInReach = (g, km) => {
-      const factor = km === 3 ? 0.35 : km === 5 ? 0.6 : 1;
-      const total = (GIVERS[g] || []).reduce((s, _gg) => s + 50, 0); // approximate
-      return Math.max(1, Math.round(total * factor));
-    };
-    setReach(donorsInReach(group, effectiveRadius));
-  }, [group, effectiveRadius]);
 
   const handleBroadcast = async () => {
     setLoading(true);
     setError('');
     try {
-      await api.post('/hospital/requests', {
+      const { data: response } = await api.post('/hospital/requests', {
         blood_group: group,
         units_needed: units,
         urgency: urgency.toLowerCase(),
         radius_km: effectiveRadius,
       });
+      const payload = response.data || response;
+      setDonorsNotified(Number(payload.donors_notified || 0));
       setSent(true);
     } catch (_err) {
       setError(_err.response?.data?.error || 'Failed to broadcast request');
@@ -59,7 +52,8 @@ export default function ConsoleNewRequest() {
         <CheckCircle2 size={44} color="#3DBD8A" style={{ margin: '0 auto' }} />
         <p style={{ fontFamily: display, fontWeight: 800, fontSize: 18, color: '#F0EEE9', margin: '14px 0 4px' }}>Request broadcast</p>
         <p style={{ fontFamily: body, fontSize: 13, color: T.consoleMut, margin: 0 }}>
-          {reach} compatible donors pinged for {group} within {effectiveRadius} km. Track responses on the live board.
+          {donorsNotified} on-call compatible donor{donorsNotified === 1 ? '' : 's'} notified for {group} within {effectiveRadius} km.
+          Track responses on the live board.
         </p>
         <div style={{ marginTop: 18 }}>
           <Btn kind="ghost" dark small onClick={() => setSent(false)}>New request</Btn>
@@ -133,7 +127,8 @@ export default function ConsoleNewRequest() {
       <div style={{ marginTop: 18, background: '#232734', border: `1px solid ${T.consoleLine}`, borderRadius: 12, padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'center' }}>
         <Users size={17} color="#8FB4E8" />
         <p style={{ fontFamily: body, fontSize: 13, color: '#D8D5CF', margin: 0 }}>
-          Will ping <b style={{ fontFamily: display }}>{reach} compatible donors</b> ({GIVERS[group].join(', ')}) on call within {effectiveRadius} km.
+          Broadcast notifies <b style={{ fontFamily: display }}>on-call donors</b> with compatible groups ({GIVERS[group].join(', ')})
+          inside {effectiveRadius} km. The exact count is confirmed after send.
         </p>
       </div>
 

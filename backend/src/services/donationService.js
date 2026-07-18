@@ -47,7 +47,7 @@ export async function completeDonationInTransaction(
   }
 
   const donorResult = await client.query(
-    'SELECT blood_group FROM users WHERE id=$1 AND role=\'donor\' AND account_status=\'active\' FOR UPDATE',
+    'SELECT hospital_donor_blood_group($1) AS blood_group',
     [donorId],
   );
   const donor = donorResult.rows[0];
@@ -76,12 +76,7 @@ export async function completeDonationInTransaction(
      WHERE id=$1 AND status='arrived'`,
     [response.id],
   );
-  await client.query(
-    `UPDATE users SET last_donation_date=CURRENT_DATE,
-       next_eligible_date=CURRENT_DATE + INTERVAL '56 days',updated_at=NOW()
-     WHERE id=$1`,
-    [donorId],
-  );
+  await client.query('SELECT hospital_record_donor_donation($1)', [donorId]);
   await client.query(
     `INSERT INTO notifications (id,user_id,type,title,body,data,is_read,created_at)
      VALUES ($1,$2,'donation_verified','Donation verified',

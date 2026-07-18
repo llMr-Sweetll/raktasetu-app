@@ -4,6 +4,8 @@ import { SOCKET_URL } from '../config.js';
 
 export function useSocket(onEvent) {
   const socketRef = useRef(null);
+  const handlersRef = useRef(onEvent);
+  handlersRef.current = onEvent;
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -15,10 +17,24 @@ export function useSocket(onEvent) {
     });
     socketRef.current = socket;
 
-    const handlers = onEvent || {};
-    Object.entries(handlers).forEach(([evt, handler]) => {
-      socket.on(evt, handler);
+    const eventNames = Object.keys(handlersRef.current || {});
+    const bound = {};
+    eventNames.forEach((evt) => {
+      bound[evt] = (...args) => {
+        const handler = handlersRef.current?.[evt];
+        if (typeof handler === 'function') handler(...args);
+      };
+      socket.on(evt, bound[evt]);
     });
+
+    // Always listen for blood_request even if handler registers later
+    if (!bound.blood_request) {
+      bound.blood_request = (...args) => {
+        const handler = handlersRef.current?.blood_request;
+        if (typeof handler === 'function') handler(...args);
+      };
+      socket.on('blood_request', bound.blood_request);
+    }
 
     const onStorage = (event) => {
       if (event.key === 'token' && !event.newValue) {
@@ -29,11 +45,11 @@ export function useSocket(onEvent) {
 
     return () => {
       window.removeEventListener('storage', onStorage);
-      Object.keys(handlers).forEach((evt) => socket.off(evt));
+      Object.entries(bound).forEach(([evt, handler]) => socket.off(evt, handler));
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [onEvent]);
+  }, []);
 
   return socketRef;
 }

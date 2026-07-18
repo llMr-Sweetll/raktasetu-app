@@ -60,7 +60,7 @@ Donor sign-in: `/#/login` · Hospital sign-in (discreet): `/#/login?role=hospita
    railway variables set \
      DATABASE_URL="postgresql://...neon.tech/neondb?sslmode=require" \
      JWT_SECRET="$(openssl rand -base64 32)" \
-     JWT_EXPIRES_IN=7d \
+     JWT_EXPIRES_IN=30m \
      NODE_ENV=production \
      FRONTEND_ORIGINS="http://localhost:5173,https://raktasetu-production.up.railway.app"
    railway up

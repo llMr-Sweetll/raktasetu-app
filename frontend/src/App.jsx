@@ -84,7 +84,14 @@ function App() {
           <Route path="/data-rights" element={<DataRights />} />
           <Route path="/security-readiness" element={<SecurityReadiness />} />
           <Route path="/google-onboarding" element={user ? <Navigate to={roleHome(user)} replace /> : <GoogleOnboarding />} />
-          <Route path="/account-link" element={user ? <Navigate to={roleHome(user)} replace /> : <AccountLink />} />
+          <Route
+            path="/account-link"
+            element={
+              user && !sessionStorage.getItem('google_link_token')
+                ? <Navigate to={roleHome(user)} replace />
+                : <AccountLink />
+            }
+          />
           <Route path="/hospital-pending" element={<HospitalPending />} />
 
           {/* Donor routes */}

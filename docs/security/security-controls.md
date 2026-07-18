@@ -38,6 +38,8 @@ The MVP records whether a contact has been verified. It does not claim SMS owner
 ## Production operations (post-MVP)
 
 - Admin bootstrap uses `backend/scripts/bootstrap-admin.js` with `ALLOW_ADMIN_BOOTSTRAP=1`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD` (min 16 chars) against `MIGRATION_DATABASE_URL`. Do not keep bootstrap passwords in Railway service variables after the first successful login.
+- Hospital matching and donation verify use `SECURITY DEFINER` helpers (`hospital_visible_on_call_donors`, `hospital_donor_blood_group`, `hospital_record_donor_donation`) so `raktasetu_rls` never needs full-row `users` SELECT for donors. Push broadcast uses `deliverable_push_subscriptions` / `delete_gone_push_subscription` under the same least-privilege model.
+- The production app process refuses to start when `MIGRATION_DATABASE_URL` is present. Keep the owner URL on CI/operator workstations and the retention cron service only.
 - Runtime database role is `raktasetu_rls` (`DB_RUNTIME_ROLE`); RLS is forced and that role has `rolbypassrls = false`.
 - Push reports configured via `/api/push/status` when VAPID env vars are present. Treat historically exposed VAPID material as rotate-when-convenient; rotation requires donors to re-subscribe.
 - GitHub Actions deploy (`.github/workflows/railway-deploy.yml`) requires repository secrets `RAILWAY_TOKEN` and `MIGRATION_DATABASE_URL`. The Railway CLI cannot mint a project token non-interactively; create a token in the Railway dashboard (Account/Project → Tokens), then:

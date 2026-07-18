@@ -1,4 +1,5 @@
 import pg from 'pg';
+import { postgresSslConfig } from '../db/ssl.js';
 
 const connectionString = process.env.RETENTION_DATABASE_URL ||
   (process.env.NODE_ENV !== 'production' && !process.env.RAILWAY_ENVIRONMENT ? process.env.DATABASE_URL : null);
@@ -7,7 +8,7 @@ if (!connectionString) throw new Error('RETENTION_DATABASE_URL is required for p
 const { Client } = pg;
 const client = new Client({
   connectionString,
-  ssl: connectionString.includes('localhost') ? false : { rejectUnauthorized: false },
+  ssl: postgresSslConfig(connectionString),
 });
 await client.connect();
 try {

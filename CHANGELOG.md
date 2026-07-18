@@ -2,6 +2,35 @@
 
 All notable changes to RaktaSetu are documented in this file.
 
+## [2.0.3] — 2026-07-18
+
+### Security
+
+- Hospitals discover and verify donors through narrow `SECURITY DEFINER` helpers under `raktasetu_rls` (blood group + coarse location only; no email/phone/name SELECT)
+- Production app process refuses to boot when `MIGRATION_DATABASE_URL` is present
+- Database TLS verification enabled by default for remote Postgres (`DATABASE_SSL_INSECURE=1` break-glass only)
+
+### Fixed
+
+- Create-request matching and donation completion work without owner RLS bypass
+- Donor on-the-way QR encodes the hospital `ref_code` used by console verify
+- Web Push (and socket `blood_request`) fires when hospitals broadcast requests, not only via `/api/push/test`
+- Create-request response returns `donors_notified` only (no `nearby_donors` PII array)
+- Pending hospital login routes to `/hospital-pending`
+- Google account-link no longer races authenticated redirects
+- Console reach copy uses API `donors_notified` instead of fabricated counts
+
+### Ops
+
+- Invite cohort runbook and retention cron guidance in `docs/operational-readiness.md`
+- Access token sample TTL documented as `30m` (refresh tokens remain the long-lived path)
+- Frontend CI installs Chromium and WebKit for Playwright mobile/desktop projects
+- GitHub→Railway deploy still requires repository secrets `RAILWAY_TOKEN` and `MIGRATION_DATABASE_URL` if not already set
+
+### Notes
+
+- Invite-only readiness support only. This release does not claim DPDP, HIPAA, or other compliance certification.
+
 ## [2.0.2] — 2026-07-18
 
 ### Fixed

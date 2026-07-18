@@ -4,6 +4,8 @@ import { authenticate, requireActiveAccount, requireApprovedHospital, requireRol
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import { completeDonation } from '../services/donationService.js';
+import { bloodRequestPushPayload, sendPushToUser } from '../services/pushDelivery.js';
+import { publishToUser } from '../realtime/publisher.js';
 import {
   donationCompletionSchema,
   donorSearchQuerySchema,
@@ -171,44 +173,60 @@ router.post('/requests', validate(requestCreateSchema), async (req, res) => {
 
     const request = result.rows[0];
 
-    // Find compatible on-call donors within radius
+    // Find compatible on-call donors within radius (minimal fields via SECURITY DEFINER)
     const compatibleDonors = GIVERS[blood_group];
     const donorsResult = await query(
-      `SELECT id, name, blood_group, latitude, longitude
-       FROM users
-       WHERE role = 'donor' AND is_on_call = true AND blood_group = ANY($1)`,
-      [compatibleDonors]
+      'SELECT id, blood_group, latitude, longitude FROM hospital_visible_on_call_donors($1)',
+      [compatibleDonors],
     );
 
     const nearbyDonors = donorsResult.rows
-      .map(d => {
+      .map((d) => {
         const dist = haversine(
           parseFloat(hospital.latitude), parseFloat(hospital.longitude),
-          parseFloat(d.latitude), parseFloat(d.longitude)
+          parseFloat(d.latitude), parseFloat(d.longitude),
         );
-        return { ...d, distance_km: Math.round(dist * 10) / 10 };
+        return { id: d.id, blood_group: d.blood_group, distance_km: Math.round(dist * 10) / 10 };
       })
-      .filter(d => d.distance_km <= effectiveRadius);
+      .filter((d) => d.distance_km <= effectiveRadius);
 
-    // Send notifications to matching donors
+    const hospitalName = req.user.name || 'Hospital';
+    const pushPayload = bloodRequestPushPayload({
+      requestId,
+      bloodGroup: blood_group,
+      urgency,
+      unitsNeeded: units_needed,
+      hospitalName,
+    });
+
+    // Persist notification, push, and optional socket — push failures must not fail the request
     for (const donor of nearbyDonors) {
       const notifId = uuidv4();
+      const title = `${urgency.toUpperCase()}: Blood needed at ${hospitalName}`;
+      const body = `${blood_group} blood needed urgently. ${units_needed} unit(s) required.`;
+      const data = { request_id: requestId, hospital_id: hospital.id, blood_group, urgency };
       await query(
         `INSERT INTO notifications (id, user_id, type, title, body, data, is_read, created_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
-        [
-          notifId, donor.id, 'blood_request',
-          `${urgency.toUpperCase()}: Blood needed at ${req.user.name || 'Hospital'}`,
-          `${blood_group} blood needed urgently. ${units_needed} unit(s) required.`,
-          JSON.stringify({ request_id: requestId, hospital_id: hospital.id, blood_group, urgency }),
-          false
-        ]
+        [notifId, donor.id, 'blood_request', title, body, JSON.stringify(data), false],
       );
+      try {
+        await sendPushToUser(donor.id, pushPayload);
+      } catch (pushErr) {
+        console.error('Push delivery failed for donor notification:', pushErr.message);
+      }
+      publishToUser(donor.id, 'blood_request', {
+        request_id: requestId,
+        blood_group,
+        urgency,
+        units_needed,
+        hospital_name: hospitalName,
+      });
     }
 
     return res.status(201).json({
       success: true,
-      data: { request, donors_notified: nearbyDonors.length, nearby_donors: nearbyDonors }
+      data: { request, donors_notified: nearbyDonors.length },
     });
   } catch (err) {
     console.error('Create request error:', err);
@@ -231,14 +249,14 @@ router.get('/requests', validate(hospitalRequestQuerySchema, 'query'), async (re
 
     if (ref) {
       const requestResult = await query(
-        `SELECT br.*, u.name AS donor_name, u.blood_group AS donor_blood_group,
-                dr.donor_id, dr.status AS donor_status, dr.responded_at
+        `SELECT br.*,
+                dr.donor_id, dr.status AS donor_status, dr.responded_at,
+                hospital_donor_blood_group(dr.donor_id) AS donor_blood_group
          FROM blood_requests br
          LEFT JOIN donor_responses dr ON dr.request_id = br.id AND dr.status = 'arrived'
-         LEFT JOIN users u ON u.id = dr.donor_id
          WHERE br.ref_code = $1 AND br.hospital_id = $2
          ORDER BY dr.responded_at DESC LIMIT 1`,
-        [ref, hospitalId]
+        [ref, hospitalId],
       );
       if (requestResult.rows.length === 0) {
         return res.status(404).json({ success: false, error: 'Request not found' });
@@ -249,13 +267,12 @@ router.get('/requests', validate(hospitalRequestQuerySchema, 'query'), async (re
         data: {
           donor: row.donor_id ? {
             id: row.donor_id,
-            name: row.donor_name,
             blood_group: row.donor_blood_group,
             ref_code: row.ref_code,
             request_id: row.id,
-            responded_at: row.responded_at
-          } : null
-        }
+            responded_at: row.responded_at,
+          } : null,
+        },
       });
     }
 
@@ -296,14 +313,13 @@ router.get('/requests/:id', validate(requestIdParamsSchema, 'params'), async (re
 
     const request = requestResult.rows[0];
 
-    // Get donor responses with donor details
+    // Responses with blood group only (no donor PII via users JOIN)
     const responsesResult = await query(
-      `SELECT dr.*, u.name AS donor_name, u.blood_group AS donor_blood_group
+      `SELECT dr.*, hospital_donor_blood_group(dr.donor_id) AS donor_blood_group
        FROM donor_responses dr
-       JOIN users u ON u.id = dr.donor_id
        WHERE dr.request_id = $1
        ORDER BY dr.responded_at DESC`,
-      [id]
+      [id],
     );
 
     return res.json({
@@ -393,31 +409,30 @@ router.get('/donors', validate(donorSearchQuerySchema, 'query'), async (req, res
     const hospital = hospitalResult.rows[0];
 
     const { radius, blood_group, limit } = req.query;
-
-    let donorQuery = `SELECT id, name, blood_group, latitude, longitude, city, is_on_call, last_donation_date, next_eligible_date
-                      FROM users WHERE role = 'donor' AND is_on_call = true`;
-    const queryParams = [];
-
-    if (blood_group) {
-      donorQuery += ' AND blood_group = $1';
-      queryParams.push(blood_group);
-    }
-
-    donorQuery += ` ORDER BY created_at DESC LIMIT $${queryParams.length + 1}`;
-    queryParams.push(Math.min(limit * 5, 500));
-    const donorsResult = await query(donorQuery, queryParams);
+    const groups = blood_group
+      ? [blood_group]
+      : ['O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+'];
+    const donorsResult = await query(
+      'SELECT id, blood_group, latitude, longitude FROM hospital_visible_on_call_donors($1)',
+      [groups],
+    );
 
     const donors = donorsResult.rows
-      .map(d => {
+      .map((d) => {
         const dist = haversine(
           parseFloat(hospital.latitude), parseFloat(hospital.longitude),
-          parseFloat(d.latitude), parseFloat(d.longitude)
+          parseFloat(d.latitude), parseFloat(d.longitude),
         );
-        return { ...d, distance_km: Math.round(dist * 10) / 10 };
+        return {
+          id: d.id,
+          blood_group: d.blood_group,
+          is_on_call: true,
+          distance_km: Math.round(dist * 10) / 10,
+        };
       })
-      .filter(d => d.distance_km <= parseInt(radius))
+      .filter((d) => d.distance_km <= parseInt(radius, 10))
       .sort((a, b) => a.distance_km - b.distance_km)
-      .slice(0, limit);
+      .slice(0, Math.min(limit || 50, 100));
 
     return res.json({ success: true, data: { donors } });
   } catch (err) {

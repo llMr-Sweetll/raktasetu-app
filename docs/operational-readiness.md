@@ -12,12 +12,13 @@
 
 ## Database roles and migrations
 
-- `MIGRATION_DATABASE_URL`: database owner; CI migration step and operator workstation only.
+- `MIGRATION_DATABASE_URL`: database owner; CI migration step and operator workstation only. **Never** set this on the Railway web/app service. Production boot refuses to start if it is present in the app process environment.
 - `DATABASE_URL`: Neon login role `raktasetu_app` (not `neondb_owner`). The API immediately `SET ROLE raktasetu_rls` (NOLOGIN, `rolbypassrls=false`) because Neon-managed login roles retain `BYPASSRLS`.
 - `DB_RUNTIME_ROLE`: defaults to `raktasetu_rls` when `NODE_ENV=production`.
-- `RETENTION_DATABASE_URL`: owner or dedicated maintenance role used only by the scheduled retention service.
+- `RETENTION_DATABASE_URL`: owner or dedicated maintenance role used only by the scheduled retention service (not the web service).
 - Migrations are checksum-tracked in `schema_migrations`. Never edit an applied migration.
 - Take a provider backup or restore point before production schema changes. Test restoration in a non-production branch before relying on it.
+- Prefer GitHub Actions `Deploy to Railway` once `RAILWAY_TOKEN` and `MIGRATION_DATABASE_URL` repository secrets are set. `railway up` from a trusted workstation is a fallback only.
 
 ## Admin bootstrap (no public demo admin)
 
@@ -42,7 +43,14 @@ Change the password on first login. Do not commit the password or put it in READ
 
 ## Retention
 
-Run `npm --prefix backend run retention` daily in a separate Railway cron service with `RETENTION_DATABASE_URL`.
+Run `npm --prefix backend run retention` daily in a separate Railway cron service with `RETENTION_DATABASE_URL` only on that service.
+
+Suggested Railway cron service:
+
+- Start command: `npm --prefix backend run retention`
+- Cron schedule: `0 3 * * *` (daily 03:00 UTC)
+- Variables: `RETENTION_DATABASE_URL` (owner/maintenance), `NODE_ENV=production`
+- Do not attach the cron variables to the web service
 
 - Expired Google onboarding records: one day after expiry.
 - Expired/revoked refresh tokens: seven/thirty days.
@@ -51,6 +59,21 @@ Run `npm --prefix backend run retention` daily in a separate Railway cron servic
 - Audit events: seven years unless `legal_hold=true`.
 
 Retention is implemented as bounded 1,000-row batches under an advisory lock. These are project defaults, not a legal determination; the organization must validate periods with counsel and policy owners.
+
+## First cohort invite
+
+Use this runbook after P0 invite gates are green (`/api/health`, hospital matching under RLS, QR/`ref_code` verify, push broadcast path, owner URL off the app service).
+
+1. Confirm health and push status on production without mutating data.
+2. Bootstrap or rotate admin with `bootstrap-admin.js` if needed; change the password immediately; remove `ALLOW_ADMIN_BOOTSTRAP` and bootstrap password variables from Railway.
+3. Invite 1 to 2 hospitals: they register, you verify license offline, then approve in `/#/admin`. Pending hospitals stay blocked.
+4. Invite 5 to 20 donors: register or Google onboarding, complete profile, enable Web Push on Profile, go on-call near an approved hospital.
+5. Dry-run: approved hospital creates a non-critical test request → donor receives push and/or in-app alert → accept → arrive → hospital verifies with the on-the-way QR/`ref_code` → credits appear → second verify is rejected.
+6. Tell invitees clearly: closed beta; not emergency medical dispatch; no SMS OTP; data may be processed on US Neon and SEA Railway; keep the app open or rely on push after enabling it.
+7. Monitor `privacy@raktasetu.org` and `security@raktasetu.org`.
+8. Rollback: redeploy the last good commit. Do not restore the database unless you accept write loss since the restore point.
+
+This is invite-only operational readiness support, not DPDP or HIPAA certification.
 
 ## Incident response
 

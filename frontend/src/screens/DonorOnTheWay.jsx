@@ -30,7 +30,11 @@ export default function DonorOnTheWay() {
       const payload = response.data || response;
       const found = payload.requests?.find(r => r.id === requestId);
       setRequest(found || null);
-      if (found) setQrData(`RS-DONOR-${found.id}`);
+      if (found?.ref_code) {
+        setQrData(found.ref_code);
+      } else {
+        setQrData('');
+      }
     } catch {
       // ignore
     } finally {
@@ -98,30 +102,60 @@ export default function DonorOnTheWay() {
       </Card>
 
       <Card style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 14 }}>
-        <div
-          style={{
-            width: 74,
-            height: 74,
-            borderRadius: 12,
-            border: `1.5px solid ${T.line}`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: '#fff',
-            padding: 5,
-          }}
-          aria-label="Donation verification QR code"
-        >
-          <QRCodeSVG
-            value={qrData || `RS-DONOR-${requestId}`}
-            size={64}
-            bgColor="#FFFFFF"
-            fgColor="#17151A"
-          />
-        </div>
+        {qrData ? (
+          <div
+            style={{
+              width: 74,
+              height: 74,
+              borderRadius: 12,
+              border: `1.5px solid ${T.line}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: '#fff',
+              padding: 5,
+            }}
+            aria-label="Donation verification QR code"
+            data-testid="verify-qr"
+            data-ref-code={qrData}
+          >
+            <QRCodeSVG
+              value={qrData}
+              size={64}
+              bgColor="#FFFFFF"
+              fgColor="#17151A"
+            />
+          </div>
+        ) : (
+          <div
+            style={{
+              width: 74,
+              height: 74,
+              borderRadius: 12,
+              border: `1.5px solid ${T.line}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: T.porcelain,
+              padding: 8,
+              textAlign: 'center',
+            }}
+            role="alert"
+          >
+            <p style={{ fontFamily: body, fontSize: 11, color: T.mut, margin: 0 }}>Ref code unavailable</p>
+          </div>
+        )}
         <div>
           <p style={{ fontFamily: display, fontWeight: 700, fontSize: 14.5, margin: 0, color: T.ink }}>Show this at the desk</p>
-          <p style={{ fontFamily: body, fontSize: 12.5, color: T.mut, margin: '3px 0 0' }}>Staff will scan it to verify your donation.</p>
+          <p style={{ fontFamily: body, fontSize: 12.5, color: T.mut, margin: '3px 0 0' }}>
+            Staff will scan or type the same ref code shown below.
+          </p>
+          <p
+            style={{ fontFamily: display, fontWeight: 800, fontSize: 13, color: T.oxblood, margin: '6px 0 0' }}
+            data-testid="verify-ref-text"
+          >
+            {qrData || 'Not available'}
+          </p>
           <p style={{ fontFamily: display, fontWeight: 800, fontSize: 13, color: T.oxblood, margin: '6px 0 0' }}>+100 credits on verification</p>
         </div>
       </Card>

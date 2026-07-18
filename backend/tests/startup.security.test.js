@@ -18,3 +18,8 @@ test('application factory does not listen or mutate schema', async () => {
   assert.doesNotMatch(appSource, /\.listen\s*\(/);
   assert.doesNotMatch(appSource, /ALTER TABLE|CREATE TABLE|seedData/);
 });
+
+test('production server refuses boot when MIGRATION_DATABASE_URL is present', async () => {
+  const server = await readFile(new URL('../src/server.js', import.meta.url), 'utf8');
+  assert.match(server, /MIGRATION_DATABASE_URL must not be set on the application service/);
+});
