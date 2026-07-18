@@ -9,12 +9,24 @@ All notable changes to RaktaSetu are documented in this file.
 - Permissions-Policy now allows same-origin `camera=(self)` so ConsoleVerify / Html5Qrcode works on the web SPA (microphone, payment, and usb stay closed)
 - Rotated production `JWT_SECRET` and bumped `token_version` to invalidate existing sessions (see `docs/security/credential-rotation-runbook.md`)
 - Confirmed historical Neon password from git-era `.env` is dead; VAPID/Google client IDs were not in that leaked file
+- Web auth: refresh token moves to `httpOnly; Secure; SameSite=Strict` cookie on `/api/auth`; access token is memory-only (Capacitor native keeps localStorage)
+- CSP drops `unpkg.com`; `connect-src` no longer allows open `wss:` (same-origin + Google accounts only)
 
 ### Fixed
 
 - India NBTC/NACO whole-blood eligibility: male **90 days**, female **120 days** (was incorrectly 56 days)
 - Donor registration and Google onboarding collect sex for interval calculation; null sex falls back to the conservative 120-day interval
 - Donor accept and on-call gates enforce the same `next_eligible_date` rule; UI cites NBTC guidelines
+- Leaflet CSS loaded from npm (map screen) instead of unpkg CDN
+
+### Added
+
+- PWA/WhatsApp PNG assets: `icon-192.png`, `icon-512.png` (maskable padding), `og-card-1200x630.png`
+- Tiny Kannada `t()` dictionary for donor-critical screens (home, alert, on-the-way, credits, login); JSON-LD `alternateName` ರಕ್ತಸೇತು / `inLanguage` en+kn
+
+### Ops
+
+- Neon production moved to `aws-ap-southeast-1` (Singapore); Mumbai unavailable on plan. Safety branch `pre-ap-southeast-cutover-2026-07-18` retained on the prior US project.
 
 ### Notes
 

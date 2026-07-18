@@ -6,7 +6,7 @@ Operational procedure for rotating RaktaSetu production secrets. **Never commit 
 
 | Secret | Role / purpose | Location |
 | --- | --- | --- |
-| `DATABASE_URL` | Neon login `raktasetu_app` (app then `SET ROLE raktasetu_rls`) | Railway service `raktasetu` only |
+| `DATABASE_URL` | Neon login `raktasetu_app` (app then `SET ROLE raktasetu_rls`) on project `raktasetu-ap-southeast-1` (`aws-ap-southeast-1`) | Railway service `raktasetu` only |
 | `RETENTION_DATABASE_URL` | Neon owner / maintenance (`neondb_owner`) | Railway cron `raktasetu-retention` only |
 | `MIGRATION_DATABASE_URL` | Neon owner (migrations) | GitHub Actions secret only — **never** on the app service |
 | `JWT_SECRET` | Access-token signing | Railway service `raktasetu` |

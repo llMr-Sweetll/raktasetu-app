@@ -72,7 +72,7 @@ Use this runbook after P0 invite gates are green (`/api/health`, hospital matchi
 4. Invite 5 to 20 donors: register or Google onboarding, complete profile, enable Web Push on Profile, go on-call near an approved hospital.
 5. Dry-run: approved hospital creates a non-critical test request → donor receives push and/or in-app alert → accept → arrive → hospital verifies with the on-the-way QR (API query param `ref`, value is `ref_code`) → credits appear → second verify is rejected.
    - 2026-07-18 production dry-run (labeled `DRYRUN* Jul18c`): approve → create-request (`donors_notified: 3`) → accept → arrive → `ref` lookup → verify (+100 credits) → second verify rejected → request closed. Test accounts keep the `DRYRUN` name/email prefix.
-6. Tell invitees clearly: closed beta; not emergency medical dispatch; no SMS OTP; data may be processed on US Neon and SEA Railway; keep the app open or rely on push after enabling it.
+6. Tell invitees clearly: closed beta; not emergency medical dispatch; no SMS OTP; data is processed on Neon Singapore (`ap-southeast-1`) and Railway SEA; keep the app open or rely on push after enabling it.
 7. Monitor `privacy@raktasetu.org` and `security@raktasetu.org`.
 8. Rollback: redeploy the last good commit. Do not restore the database unless you accept write loss since the restore point.
 
