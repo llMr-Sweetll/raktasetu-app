@@ -33,3 +33,11 @@ test('only active owners receive operational access', () => {
   assert.equal(authorize({ actor: hospital, action: 'hospital.request.update', resource: { hospital_id: hospital.hospital_id } }).allowed, true);
   assert.equal(authorize({ actor: { ...donor, account_status: 'deleted' }, action: 'donor.profile.read', resource: { user_id: donor.id } }).allowed, false);
 });
+
+test('credit redemption actions follow donor/hospital ownership', () => {
+  assert.equal(authorize({ actor: donor, action: 'donor.redemption.create', resource: { user_id: donor.id } }).allowed, true);
+  assert.equal(authorize({ actor: donor, action: 'donor.family.write', resource: { user_id: 'donor-b' } }).allowed, false);
+  assert.equal(authorize({ actor: hospital, action: 'hospital.redemption.verify', resource: { hospital_id: hospital.hospital_id } }).allowed, true);
+  assert.equal(authorize({ actor: hospital, action: 'hospital.redemption.verify', resource: { hospital_id: 'hospital-b' } }).allowed, false);
+  assert.equal(authorize({ actor: donor, action: 'hospital.redemption.verify', resource: { hospital_id: 'hospital-a' } }).allowed, false);
+});

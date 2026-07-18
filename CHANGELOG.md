@@ -2,6 +2,21 @@
 
 All notable changes to RaktaSetu are documented in this file.
 
+## [2.0.7] — 2026-07-19
+
+### Added
+
+- Credit redemption end-to-end: donors redeem 100 credits for self or a registered family member (max 4); hospital console verifies one-time `RSC-` codes
+- `family_members.relation` + max-4 trigger; `redemptions` table with hashed codes; credits ledger types `reserved` / `reserve_released` / `redeemed`
+- SECURITY DEFINER `hospital_complete_redemption(code_hash)` so hospitals never SELECT raw redemption rows (privacy-preserving, mirrors donor-visibility helpers)
+- Retention job expires active redemptions past `expires_at` and releases reserved credits
+- Donor Credits UI: beneficiary picker, inline family add, QR + countdown + cancel; Console Verify toggle for donation vs redeem
+
+### Changed
+
+- Credit balance is now `SUM(credits.amount)` so reservations and releases stay consistent
+- Package / health version bumped to `2.0.7`
+
 ## [2.0.6] — 2026-07-18
 
 ### Security

@@ -7,11 +7,20 @@ import {
   donorProfileSchema,
   donorRequestParamsSchema,
   donorResponseSchema,
+  familyMemberIdParamsSchema,
+  familyMemberSchema,
   onCallSchema,
   paginationSchema,
+  redemptionCreateSchema,
+  redemptionIdParamsSchema,
   validate,
 } from '../validation/schemas.js';
 import { isDonorEligible, nbtcIntervalDays } from '../utils/eligibility.js';
+import { withAuthorizationContext } from '../db/authorizedTransaction.js';
+import {
+  cancelRedemption,
+  createRedemption,
+} from '../services/redemptionService.js';
 
 const router = express.Router();
 
@@ -384,15 +393,15 @@ router.get('/credits', validate(paginationSchema, 'query'), async (req, res) => 
     const donorId = req.user.id;
 
     const balanceResult = await query(
-      `SELECT
-        COALESCE(SUM(amount) FILTER (WHERE type = 'earned'), 0) - COALESCE(SUM(amount) FILTER (WHERE type = 'redeemed'), 0) AS balance
+      `SELECT COALESCE(SUM(amount), 0)::int AS balance
        FROM credits WHERE donor_id = $1`,
       [donorId]
     );
-    const balance = parseInt(balanceResult.rows[0]?.balance) || 0;
+    const balance = parseInt(balanceResult.rows[0]?.balance, 10) || 0;
 
     const historyResult = await query(
-      `SELECT c.*, d.ref_code AS donation_ref
+      `SELECT c.id, c.donor_id, c.amount, c.type, c.description, c.related_donation_id,
+              c.related_redemption_id, c.created_at, d.ref_code AS donation_ref
        FROM credits c
        LEFT JOIN donations d ON d.id = c.related_donation_id
        WHERE c.donor_id = $1
@@ -407,6 +416,187 @@ router.get('/credits', validate(paginationSchema, 'query'), async (req, res) => 
   } catch (err) {
     console.error('Credits error:', err);
     return res.status(500).json({ success: false, error: 'Failed to fetch credits' });
+  }
+});
+
+/**
+ * GET /api/donor/family
+ */
+router.get('/family', async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT id, donor_id, name, relation, blood_group, created_at
+       FROM family_members WHERE donor_id = $1
+       ORDER BY created_at DESC, id DESC`,
+      [req.user.id],
+    );
+    return res.json({ success: true, data: { members: result.rows } });
+  } catch (err) {
+    console.error('Family list error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to fetch family members' });
+  }
+});
+
+/**
+ * POST /api/donor/family
+ */
+router.post('/family', validate(familyMemberSchema), async (req, res) => {
+  try {
+    const donorId = req.user.id;
+    const { name, relation, blood_group } = req.body;
+
+    const member = await withAuthorizationContext(
+      { userId: donorId, role: 'donor' },
+      async (client) => {
+        const countResult = await client.query(
+          'SELECT COUNT(*)::int AS count FROM family_members WHERE donor_id = $1',
+          [donorId],
+        );
+        if ((countResult.rows[0]?.count || 0) >= 4) {
+          const error = new Error('Maximum of 4 family members');
+          error.status = 409;
+          error.code = 'FAMILY_LIMIT_REACHED';
+          throw error;
+        }
+        const id = uuidv4();
+        const inserted = await client.query(
+          `INSERT INTO family_members (id, donor_id, name, relation, relationship, blood_group, created_at)
+           VALUES ($1, $2, $3, $4, $4, $5, NOW())
+           RETURNING id, donor_id, name, relation, blood_group, created_at`,
+          [id, donorId, name, relation, blood_group || null],
+        );
+        return inserted.rows[0];
+      },
+    );
+
+    await logAudit({
+      userId: donorId,
+      action: 'FAMILY_MEMBER_ADDED',
+      resourceType: 'family_member',
+      resourceId: member.id,
+      details: { relation },
+      req,
+    });
+
+    return res.status(201).json({ success: true, data: { member } });
+  } catch (err) {
+    if (err.status === 409 || err.code === '23514' || String(err.message || '').includes('Maximum of 4')) {
+      return res.status(409).json({
+        success: false,
+        error: { code: 'FAMILY_LIMIT_REACHED', message: 'Maximum of 4 family members' },
+      });
+    }
+    console.error('Family add error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to add family member' });
+  }
+});
+
+/**
+ * DELETE /api/donor/family/:id
+ */
+router.delete('/family/:id', validate(familyMemberIdParamsSchema, 'params'), async (req, res) => {
+  try {
+    const result = await query(
+      `DELETE FROM family_members WHERE id = $1 AND donor_id = $2 RETURNING id`,
+      [req.params.id, req.user.id],
+    );
+    if (!result.rows[0]) {
+      return res.status(404).json({ success: false, error: { code: 'FAMILY_MEMBER_NOT_FOUND', message: 'Family member not found' } });
+    }
+    await logAudit({
+      userId: req.user.id,
+      action: 'FAMILY_MEMBER_REMOVED',
+      resourceType: 'family_member',
+      resourceId: req.params.id,
+      details: {},
+      req,
+    });
+    return res.json({ success: true, data: { id: req.params.id } });
+  } catch (err) {
+    console.error('Family delete error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to remove family member' });
+  }
+});
+
+/**
+ * GET /api/donor/redemptions
+ */
+router.get('/redemptions', validate(paginationSchema, 'query'), async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT r.id, r.donor_id, r.family_member_id, r.status, r.credits_amount,
+              r.created_at, r.expires_at, r.completed_at,
+              fm.name AS beneficiary_name, fm.relation AS beneficiary_relation
+       FROM redemptions r
+       LEFT JOIN family_members fm ON fm.id = r.family_member_id
+       WHERE r.donor_id = $1
+       ORDER BY r.created_at DESC, r.id DESC
+       LIMIT $2`,
+      [req.user.id, req.query.limit],
+    );
+    return res.json({ success: true, data: { redemptions: result.rows } });
+  } catch (err) {
+    console.error('Redemptions list error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to fetch redemptions' });
+  }
+});
+
+/**
+ * POST /api/donor/redemptions
+ */
+router.post('/redemptions', validate(redemptionCreateSchema), async (req, res) => {
+  try {
+    const { redemption, code } = await createRedemption({
+      donorId: req.user.id,
+      familyMemberId: req.body.family_member_id || null,
+      req,
+    });
+    return res.status(201).json({
+      success: true,
+      data: {
+        redemption: {
+          id: redemption.id,
+          status: redemption.status,
+          credits_amount: redemption.credits_amount,
+          family_member_id: redemption.family_member_id,
+          created_at: redemption.created_at,
+          expires_at: redemption.expires_at,
+        },
+        code,
+      },
+    });
+  } catch (err) {
+    console.error('Redemption create error:', err);
+    return res.status(err.status || 500).json({
+      success: false,
+      error: {
+        code: err.code || 'REDEMPTION_CREATE_FAILED',
+        message: err.message || 'Failed to create redemption',
+      },
+    });
+  }
+});
+
+/**
+ * POST /api/donor/redemptions/:id/cancel
+ */
+router.post('/redemptions/:id/cancel', validate(redemptionIdParamsSchema, 'params'), async (req, res) => {
+  try {
+    const result = await cancelRedemption({
+      donorId: req.user.id,
+      redemptionId: req.params.id,
+      req,
+    });
+    return res.json({ success: true, data: result });
+  } catch (err) {
+    console.error('Redemption cancel error:', err);
+    return res.status(err.status || 500).json({
+      success: false,
+      error: {
+        code: err.code || 'REDEMPTION_CANCEL_FAILED',
+        message: err.message || 'Failed to cancel redemption',
+      },
+    });
   }
 });
 

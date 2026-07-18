@@ -4,6 +4,7 @@ import { authenticate, requireActiveAccount, requireApprovedHospital, requireRol
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import { completeDonation } from '../services/donationService.js';
+import { completeRedemption } from '../services/redemptionService.js';
 import { bloodRequestPushPayload, sendPushToUser } from '../services/pushDelivery.js';
 import { publishToUser } from '../realtime/publisher.js';
 import {
@@ -14,6 +15,7 @@ import {
   requestIdParamsSchema,
   requestStatusSchema,
   validate,
+  verifyRedemptionSchema,
 } from '../validation/schemas.js';
 
 const router = express.Router();
@@ -393,6 +395,30 @@ router.post('/verify-donation', validate(donationCompletionSchema), async (req, 
     return res.status(err.status || 500).json({
       success: false,
       error: { code: err.code || 'DONATION_COMPLETION_FAILED', message: err.message || 'Failed to verify donation' },
+    });
+  }
+});
+
+/**
+ * POST /api/hospital/verify-redemption
+ * Complete a credit redemption via one-time RSC- code (hashed lookup).
+ */
+router.post('/verify-redemption', validate(verifyRedemptionSchema), async (req, res) => {
+  try {
+    const redemption = await completeRedemption({
+      actor: req.user,
+      code: req.body.code,
+      req,
+    });
+    return res.json({ success: true, data: { redemption } });
+  } catch (err) {
+    console.error('Verify redemption error:', err);
+    return res.status(err.status || 500).json({
+      success: false,
+      error: {
+        code: err.code || 'REDEMPTION_COMPLETION_FAILED',
+        message: err.message || 'Failed to verify redemption',
+      },
     });
   }
 });

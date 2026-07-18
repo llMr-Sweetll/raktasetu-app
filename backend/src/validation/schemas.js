@@ -139,6 +139,26 @@ export const pushSubscriptionSchema = z.object({
 }).strict();
 export const pushTestSchema = z.object({ body: z.string().trim().max(200).optional() }).strict();
 
+export const FAMILY_RELATIONS = ['spouse', 'parent', 'child', 'sibling', 'other'];
+
+export const familyMemberSchema = z.object({
+  name: name,
+  relation: z.enum(FAMILY_RELATIONS),
+  blood_group: z.enum(BLOOD_GROUPS).optional(),
+}).strict();
+
+export const familyMemberIdParamsSchema = z.object({ id: z.uuid() }).strict();
+
+export const redemptionCreateSchema = z.object({
+  family_member_id: z.uuid().nullable().optional(),
+}).strict();
+
+export const redemptionIdParamsSchema = z.object({ id: z.uuid() }).strict();
+
+export const verifyRedemptionSchema = z.object({
+  code: z.string().trim().toUpperCase().regex(/^RSC-[A-Z0-9]{8}$/, 'Invalid redemption code'),
+}).strict();
+
 export function validate(schema, source = 'body') {
   return (req, res, next) => {
     const result = schema.safeParse(req[source]);

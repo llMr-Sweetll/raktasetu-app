@@ -97,9 +97,10 @@ CREATE TABLE IF NOT EXISTS credits (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   donor_id uuid REFERENCES users(id),
   amount integer NOT NULL,
-  type varchar NOT NULL,
+  type varchar NOT NULL CHECK (type IN ('earned', 'redeemed', 'adjustment', 'reserved', 'reserve_released')),
   description text,
   related_donation_id uuid REFERENCES donations(id),
+  related_redemption_id uuid,
   created_at timestamptz DEFAULT now()
 );
 
@@ -107,10 +108,28 @@ CREATE TABLE IF NOT EXISTS family_members (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   donor_id uuid REFERENCES users(id),
   name varchar NOT NULL,
-  relationship varchar NOT NULL,
+  relationship varchar,
+  relation text NOT NULL CHECK (relation IN ('spouse', 'parent', 'child', 'sibling', 'other')),
   blood_group varchar,
   created_at timestamptz DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS redemptions (
+  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  donor_id uuid NOT NULL REFERENCES users(id),
+  family_member_id uuid REFERENCES family_members(id) ON DELETE SET NULL,
+  code_hash varchar NOT NULL UNIQUE,
+  status text NOT NULL DEFAULT 'active'
+    CHECK (status IN ('active', 'completed', 'expired', 'cancelled')),
+  hospital_id uuid REFERENCES hospitals(id),
+  credits_amount integer NOT NULL DEFAULT 100,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  expires_at timestamptz NOT NULL DEFAULT (now() + INTERVAL '24 hours'),
+  completed_at timestamptz,
+  verified_by uuid REFERENCES users(id)
+);
+
+-- credits.related_redemption_id → redemptions(id) applied in migration when both exist
 
 CREATE TABLE IF NOT EXISTS notifications (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),

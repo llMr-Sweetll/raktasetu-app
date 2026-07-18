@@ -1,4 +1,5 @@
 import pg from 'pg';
+import { v4 as uuidv4 } from 'uuid';
 import { postgresSslConfig } from '../db/ssl.js';
 
 const connectionString = process.env.RETENTION_DATABASE_URL ||
@@ -36,6 +37,46 @@ try {
       }
       console.log(`${table}: removed ${total}`);
     }
+
+    let expiredRedemptions = 0;
+    for (;;) {
+      const batch = await client.query(
+        `WITH expired AS (
+           SELECT id, donor_id, credits_amount
+           FROM redemptions
+           WHERE status = 'active' AND expires_at < NOW()
+           ORDER BY expires_at ASC
+           LIMIT 500
+           FOR UPDATE SKIP LOCKED
+         ),
+         marked AS (
+           UPDATE redemptions r
+           SET status = 'expired'
+           FROM expired e
+           WHERE r.id = e.id
+           RETURNING r.id, r.donor_id, r.credits_amount
+         )
+         SELECT * FROM marked`,
+      );
+      if (batch.rowCount === 0) break;
+      for (const row of batch.rows) {
+        await client.query(
+          `INSERT INTO credits (
+             id, donor_id, amount, type, description, related_redemption_id, created_at
+           )
+           SELECT $1, $2, $3, 'reserve_released', 'Redemption expired — credits released', $4, NOW()
+           WHERE NOT EXISTS (
+             SELECT 1 FROM credits c
+             WHERE c.related_redemption_id = $4 AND c.type = 'reserve_released'
+           )`,
+          [uuidv4(), row.donor_id, row.credits_amount, row.id],
+        );
+      }
+      expiredRedemptions += batch.rowCount;
+      if (batch.rowCount < 500) break;
+    }
+    console.log(`redemptions: expired ${expiredRedemptions}`);
+
     await client.query('SELECT pg_advisory_unlock(78254103)');
   }
 } finally {
