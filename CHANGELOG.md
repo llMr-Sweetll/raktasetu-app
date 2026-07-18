@@ -2,6 +2,28 @@
 
 All notable changes to RaktaSetu are documented in this file.
 
+## [2.0.6] — 2026-07-18
+
+### Security
+
+- Global API rate limit keys by authenticated user id (JWT `sub`) with IP fallback, so CGNAT/shared NATs do not starve distinct sessions; `/api/auth/` stays IP-keyed and tighter
+- Removed unused min-8 `validatePassword` helper; registration policy remains Zod min 12
+- Smoke scripts no longer embed demo credentials; require `RAKTASETU_EMAIL` / `RAKTASETU_PASSWORD` (or `EMAIL` / `PASSWORD`)
+
+### Fixed
+
+- Web SPA uses `BrowserRouter` (clean URLs + Express SPA fallback); Capacitor native keeps `HashRouter`; legacy `/#/…` deep links redirect on web
+- `AuthProvider` again renders `children` (regression that blanked the SPA shell)
+- `index.html` served with real `Cache-Control: no-store` (hashed assets stay long-cache); removed ineffective `http-equiv` cache meta tags
+
+### Added
+
+- CI guard: blood compatibility matrix must match across `donor.js`, `hospital.js`, and `frontend/src/theme.js`
+
+### Notes
+
+- `BEGIN READ ONLY` for GET-path DB queries deferred; TODO left on `query()` in `db.js`
+
 ## [2.0.5] — 2026-07-18
 
 ### Security

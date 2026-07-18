@@ -4,14 +4,14 @@ test('public trust and auth routes are responsive', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await page.goto('/#/login');
+  await page.goto('/login');
   await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible();
-  await page.goto('/#/privacy');
+  await page.goto('/privacy');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 });
 
 test('protected hospital route rejects an anonymous session', async ({ page }) => {
-  await page.goto('/#/console');
+  await page.goto('/console');
   await expect(page).toHaveURL(/login/);
 });
 

@@ -15,6 +15,7 @@
 - `MIGRATION_DATABASE_URL`: database owner; CI migration step and operator workstation only. **Never** set this on the Railway web/app service. Production boot refuses to start if it is present in the app process environment.
 - `DATABASE_URL`: Neon login role `raktasetu_app` (not `neondb_owner`). The API immediately `SET ROLE raktasetu_rls` (NOLOGIN, `rolbypassrls=false`) because Neon-managed login roles retain `BYPASSRLS`.
 - `DB_RUNTIME_ROLE`: defaults to `raktasetu_rls` when `NODE_ENV=production`.
+- Auth-scoped `query()` still opens `BEGIN READ WRITE` for RLS context; opt-in `READ ONLY` for pure GET paths is a follow-up (see TODO in `backend/src/db.js`).
 - `RETENTION_DATABASE_URL`: owner or dedicated maintenance role used only by the scheduled retention service (not the web service).
 - Migrations are checksum-tracked in `schema_migrations`. Never edit an applied migration.
 - Take a provider backup or restore point before production schema changes. Test restoration in a non-production branch before relying on it.
@@ -68,7 +69,7 @@ Use this runbook after P0 invite gates are green (`/api/health`, hospital matchi
 
 1. Confirm health and push status on production without mutating data.
 2. Bootstrap or rotate admin with `bootstrap-admin.js` if needed; change the password immediately; remove `ALLOW_ADMIN_BOOTSTRAP` and bootstrap password variables from Railway.
-3. Invite 1 to 2 hospitals: they register, you verify license offline, then approve in `/#/admin`. Pending hospitals stay blocked.
+3. Invite 1 to 2 hospitals: they register, you verify license offline, then approve in `/admin`. Pending hospitals stay blocked.
 4. Invite 5 to 20 donors: register or Google onboarding, complete profile, enable Web Push on Profile, go on-call near an approved hospital.
 5. Dry-run: approved hospital creates a non-critical test request → donor receives push and/or in-app alert → accept → arrive → hospital verifies with the on-the-way QR (API query param `ref`, value is `ref_code`) → credits appear → second verify is rejected.
    - 2026-07-18 production dry-run (labeled `DRYRUN* Jul18c`): approve → create-request (`donors_notified: 3`) → accept → arrive → `ref` lookup → verify (+100 credits) → second verify rejected → request closed. Test accounts keep the `DRYRUN` name/email prefix.

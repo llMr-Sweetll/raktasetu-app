@@ -16,9 +16,10 @@ import { isDonorEligible, nbtcIntervalDays } from '../utils/eligibility.js';
 const router = express.Router();
 
 /**
- * Blood compatibility matrix: which blood groups can DONATE to a given recipient group
+ * Blood compatibility matrix: which blood groups can DONATE to a given recipient group.
+ * Keep identical to hospital.js and frontend/src/theme.js (guarded by compatibility-matrix.test.js).
  */
-const GIVERS = {
+export const GIVERS = {
   'O-':  ['O-'],
   'O+':  ['O-', 'O+'],
   'A-':  ['O-', 'A-'],

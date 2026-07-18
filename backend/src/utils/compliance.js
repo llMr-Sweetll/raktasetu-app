@@ -57,29 +57,3 @@ export async function blacklistToken(jti, userId, expiresAt) {
     [uuidv4(), jti, userId, expiresAt]
   );
 }
-
-/**
- * Password strength validator (DPDP / HIPAA security best practice)
- */
-export function validatePassword(password) {
-  const errors = [];
-  if (!password || password.length < 8) {
-    errors.push('Password must be at least 8 characters');
-  }
-  if (!/[A-Z]/.test(password)) {
-    errors.push('Password must contain at least one uppercase letter');
-  }
-  if (!/[a-z]/.test(password)) {
-    errors.push('Password must contain at least one lowercase letter');
-  }
-  if (!/[0-9]/.test(password)) {
-    errors.push('Password must contain at least one digit');
-  }
-  if (!/[^A-Za-z0-9]/.test(password)) {
-    errors.push('Password must contain at least one special character');
-  }
-  return {
-    valid: errors.length === 0,
-    errors
-  };
-}

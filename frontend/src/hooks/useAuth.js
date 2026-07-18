@@ -155,7 +155,7 @@ function useAuthState() {
 
 export function AuthProvider({ children }) {
   const value = useAuthState();
-  return createElement(AuthContext.Provider, { value });
+  return createElement(AuthContext.Provider, { value }, children);
 }
 
 export function useAuth() {

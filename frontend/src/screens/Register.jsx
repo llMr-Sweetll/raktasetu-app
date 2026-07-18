@@ -214,7 +214,7 @@ export default function Register() {
             <label style={{ fontFamily: body, fontSize: 11, color: T.mut, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Password</label>
             <div style={{ position: 'relative' }}>
               <Lock size={16} color={T.faint} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
-              <input type="password" aria-label="Password" required autoComplete="new-password" placeholder="Min 8 characters with uppercase, lowercase, number, symbol" value={password} onChange={(e) => setPassword(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
+              <input type="password" aria-label="Password" required autoComplete="new-password" minLength={12} placeholder="Min 12 characters with uppercase, lowercase, number, symbol" value={password} onChange={(e) => setPassword(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
             </div>
           </div>
 

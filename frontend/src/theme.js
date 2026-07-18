@@ -19,6 +19,7 @@ export const T = {
   gold: '#8A6A1F',
 };
 
+/** Keep identical to backend donor.js / hospital.js (guarded by compatibility-matrix.test.js). */
 export const GIVERS = {
   'O-': ['O-'],
   'O+': ['O-', 'O+'],

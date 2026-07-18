@@ -1,9 +1,10 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { HashRouter } from 'react-router-dom'
+import { BrowserRouter, HashRouter } from 'react-router-dom'
 import { registerSW } from 'virtual:pwa-register'
 import App from './App.jsx'
 import { AuthProvider } from './hooks/useAuth.js'
+import { isNativePlatform } from './lib/platform.js'
 import './index.css'
 import './public.css'
 
@@ -13,6 +14,17 @@ try {
   console.warn('[RaktaSetu] SW register skipped:', err)
 }
 
+const useHashRouter = isNativePlatform()
+
+// Web: map legacy `/#/path` bookmarks and push deep links onto clean BrowserRouter paths
+// before the router mounts so the first paint matches the intended route.
+if (!useHashRouter && typeof window !== 'undefined' && window.location.hash.startsWith('#/')) {
+  const target = window.location.hash.slice(1)
+  window.history.replaceState(null, '', target)
+}
+
+const Router = useHashRouter ? HashRouter : BrowserRouter
+
 try {
   const root = document.getElementById('root')
   if (!root) {
@@ -20,11 +32,11 @@ try {
   }
   ReactDOM.createRoot(root).render(
     <React.StrictMode>
-      <HashRouter>
+      <Router>
         <AuthProvider>
           <App />
         </AuthProvider>
-      </HashRouter>
+      </Router>
     </React.StrictMode>,
   )
 } catch (_err) {

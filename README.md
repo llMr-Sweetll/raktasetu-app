@@ -11,11 +11,12 @@ One Railway service (`raktasetu`) hosts **both** the Express/Socket.io API and t
 
 ```bash
 curl -sf https://raktasetu-production.up.railway.app/api/health
-./test_login.sh https://raktasetu-production.up.railway.app
+RAKTASETU_EMAIL='you@example.com' RAKTASETU_PASSWORD='...' ./test_login.sh https://raktasetu-production.up.railway.app
 ```
 
-Guest landing (mission / vision / Living Bridge) is at `/#/`.  
-Donor sign-in: `/#/login` · Hospital sign-in (discreet): `/#/login?role=hospital`.
+Guest landing (mission / vision / Living Bridge) is at `/`.  
+Donor sign-in: `/login` · Hospital sign-in (discreet): `/login?role=hospital`.  
+(Capacitor native builds still use hash routes: `/#/…`.)
 
 Canonical GitHub remote: `https://github.com/Chandrashekhar-Hegde/raktasetu-app.git`
 
@@ -48,7 +49,7 @@ Canonical GitHub remote: `https://github.com/Chandrashekhar-Hegde/raktasetu-app.
 
 | Layer | Technology |
 |-------|------------|
-| Frontend | React 18, Vite, Three.js, Capacitor, HashRouter, vite-plugin-pwa |
+| Frontend | React 18, Vite, Three.js, Capacitor, BrowserRouter (web) / HashRouter (native), vite-plugin-pwa |
 | Backend | Express 4, Socket.io, JWT, google-auth-library, web-push |
 | Database | Neon Postgres |
 | Hosting | Railway (API + SPA) + retention cron |

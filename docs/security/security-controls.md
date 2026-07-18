@@ -28,6 +28,8 @@ This document records implemented controls and known boundaries. It is not a cla
 - Mutation payloads use strict Zod schemas with bounded strings, enums, numeric ranges, UUIDs, and HTTPS-only push endpoints.
 - JSON request bodies are limited to 10 KB.
 - API and authentication rate limits are separate from static assets.
+- Global API limiter (~400 req / 15 min) keys by authenticated user id (`Bearer` JWT `sub`) when present, otherwise by client IP — so shared CGNAT / carrier NATs do not starve distinct signed-in users. The `/api/auth/` limiter stays tighter (~30 / 15 min) and IP-keyed so credential stuffing is not amortized across accounts.
+- Password policy for registration / password-change schemas is Zod min 12 with upper, lower, digit, and special character (legacy unused `validatePassword` helper removed).
 - Socket.IO accepts tokens only in the private auth payload, joins identity-scoped rooms, disconnects at token expiry, and exposes no mutation implementation.
 - Push endpoints cannot transfer between users. Expired subscriptions are removed only within the authenticated owner scope.
 - Helmet, HSTS in production, explicit CORS origins, permissions policy, no-store API responses, and restrictive content policies are enabled.
