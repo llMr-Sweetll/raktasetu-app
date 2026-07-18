@@ -2,6 +2,25 @@
 
 All notable changes to RaktaSetu are documented in this file.
 
+## [2.0.5] — 2026-07-18
+
+### Security
+
+- Permissions-Policy now allows same-origin `camera=(self)` so ConsoleVerify / Html5Qrcode works on the web SPA (microphone, payment, and usb stay closed)
+- Rotated production `JWT_SECRET` and bumped `token_version` to invalidate existing sessions (see `docs/security/credential-rotation-runbook.md`)
+- Confirmed historical Neon password from git-era `.env` is dead; VAPID/Google client IDs were not in that leaked file
+
+### Fixed
+
+- India NBTC/NACO whole-blood eligibility: male **90 days**, female **120 days** (was incorrectly 56 days)
+- Donor registration and Google onboarding collect sex for interval calculation; null sex falls back to the conservative 120-day interval
+- Donor accept and on-call gates enforce the same `next_eligible_date` rule; UI cites NBTC guidelines
+
+### Notes
+
+- Capacitor native packaging remains optional; camera QR verify must work on HTTPS web for the KLE pilot
+- Optional git-history purge (BFG/filter-repo) of the old `.env` blob still requires explicit approval before any force-push
+
 ## [2.0.4] — 2026-07-18
 
 ### Ops

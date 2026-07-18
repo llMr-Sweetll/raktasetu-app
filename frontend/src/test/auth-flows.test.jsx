@@ -31,6 +31,7 @@ describe('identity state screens', () => {
     render(<MemoryRouter><GoogleOnboarding /></MemoryRouter>);
     fireEvent.change(screen.getByLabelText('Phone'), { target: { value: '+919876543210' } });
     fireEvent.change(screen.getByLabelText('Date of birth'), { target: { value: '1990-01-01' } });
+    fireEvent.change(screen.getByLabelText(/Sex \(NBTC interval\)/i), { target: { value: 'male' } });
     fireEvent.change(screen.getByLabelText('City'), { target: { value: 'Hubballi' } });
     fireEvent.click(screen.getByRole('button', { name: /create donor account/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/consent is required/i);

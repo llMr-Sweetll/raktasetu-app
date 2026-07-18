@@ -25,6 +25,7 @@ export default function DonorProfile() {
   const [notifMsg, setNotifMsg] = useState('');
   const [notifBusy, setNotifBusy] = useState(false);
   const [dateOfBirth, setDateOfBirth] = useState(user?.date_of_birth?.slice?.(0, 10) || '');
+  const [sex, setSex] = useState(user?.sex || '');
   const [profileMsg, setProfileMsg] = useState('');
 
   useEffect(() => {
@@ -85,41 +86,80 @@ export default function DonorProfile() {
         </div>
       </Card>
 
-      {!user?.date_of_birth ? (
+      {!user?.date_of_birth || !user?.sex ? (
         <Card style={{ marginTop: 10, padding: 13 }}>
-          <p style={{ fontFamily: display, fontWeight: 700, fontSize: 13.5, margin: '0 0 4px', color: T.ink }}>Complete age eligibility</p>
-          <p style={{ fontFamily: body, fontSize: 12, color: T.faint, margin: '0 0 10px' }}>Date of birth is required before you can go on call.</p>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input
-              aria-label="Date of birth"
-              type="date"
-              value={dateOfBirth}
-              onChange={(event) => setDateOfBirth(event.target.value)}
-              className="rs-field"
-              style={{
-                flex: 1,
-                minHeight: 42,
-                borderRadius: 10,
-                border: `1px solid ${T.line}`,
-                padding: '0 10px',
-                background: T.card,
-                color: T.ink,
-                colorScheme: 'light',
-                fontFamily: body,
-                fontSize: 16,
-              }}
-            />
-            <button type="button" onClick={async () => {
-              setProfileMsg('');
-              try {
-                const { data: response } = await api.patch('/donor/profile', { date_of_birth: dateOfBirth });
-                updateUser(response.data?.user || {});
-                setProfileMsg('Date of birth saved.');
-              } catch (requestError) {
-                setProfileMsg(requestError.response?.data?.error?.message || 'Could not save date of birth.');
-              }
-            }}>Save</button>
-          </div>
+          <p style={{ fontFamily: display, fontWeight: 700, fontSize: 13.5, margin: '0 0 4px', color: T.ink }}>Complete donation eligibility</p>
+          <p style={{ fontFamily: body, fontSize: 12, color: T.faint, margin: '0 0 10px' }}>
+            Date of birth and sex are required for NBTC/NACO intervals (male 90 days, female 120 days).
+          </p>
+          {!user?.date_of_birth ? (
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              <input
+                aria-label="Date of birth"
+                type="date"
+                value={dateOfBirth}
+                onChange={(event) => setDateOfBirth(event.target.value)}
+                className="rs-field"
+                style={{
+                  flex: 1,
+                  minHeight: 42,
+                  borderRadius: 10,
+                  border: `1px solid ${T.line}`,
+                  padding: '0 10px',
+                  background: T.card,
+                  color: T.ink,
+                  colorScheme: 'light',
+                  fontFamily: body,
+                  fontSize: 16,
+                }}
+              />
+              <button type="button" onClick={async () => {
+                setProfileMsg('');
+                try {
+                  const { data: response } = await api.patch('/donor/profile', { date_of_birth: dateOfBirth });
+                  updateUser(response.data?.user || {});
+                  setProfileMsg('Date of birth saved.');
+                } catch (requestError) {
+                  setProfileMsg(requestError.response?.data?.error?.message || 'Could not save date of birth.');
+                }
+              }}>Save</button>
+            </div>
+          ) : null}
+          {!user?.sex ? (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <select
+                aria-label="Sex"
+                value={sex}
+                onChange={(event) => setSex(event.target.value)}
+                className="rs-field"
+                style={{
+                  flex: 1,
+                  minHeight: 42,
+                  borderRadius: 10,
+                  border: `1px solid ${T.line}`,
+                  padding: '0 10px',
+                  background: T.card,
+                  color: T.ink,
+                  fontFamily: body,
+                  fontSize: 16,
+                }}
+              >
+                <option value="" disabled>Select sex</option>
+                <option value="male">Male (90-day gap)</option>
+                <option value="female">Female (120-day gap)</option>
+              </select>
+              <button type="button" onClick={async () => {
+                setProfileMsg('');
+                try {
+                  const { data: response } = await api.patch('/donor/profile', { sex });
+                  updateUser(response.data?.user || {});
+                  setProfileMsg('Sex saved for NBTC eligibility.');
+                } catch (requestError) {
+                  setProfileMsg(requestError.response?.data?.error?.message || 'Could not save sex.');
+                }
+              }}>Save</button>
+            </div>
+          ) : null}
           {profileMsg ? <p role="status" style={{ fontFamily: body, fontSize: 12, color: T.mut }}>{profileMsg}</p> : null}
         </Card>
       ) : null}
@@ -129,7 +169,14 @@ export default function DonorProfile() {
         <div>
           <p style={{ fontFamily: display, fontWeight: 700, fontSize: 13.5, margin: 0, color: T.ink }}>Next eligible date</p>
           <p style={{ fontFamily: body, fontSize: 12, color: T.faint, margin: '2px 0 0' }}>
-            {nextEligible ? new Date(nextEligible).toLocaleDateString() : 'Eligible now (90-day gap complete)'}
+            {nextEligible
+              ? new Date(nextEligible).toLocaleDateString()
+              : user?.sex === 'female'
+                ? 'Eligible now (NBTC 120-day gap complete)'
+                : 'Eligible now (NBTC 90-day gap complete)'}
+          </p>
+          <p style={{ fontFamily: body, fontSize: 11, color: T.faint, margin: '4px 0 0' }}>
+            Per India NBTC/NACO guidelines: male 90 days, female 120 days after whole-blood donation.
           </p>
         </div>
       </Card>

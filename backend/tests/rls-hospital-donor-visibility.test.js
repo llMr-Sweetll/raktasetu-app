@@ -84,6 +84,31 @@ test('hospital donor visibility under RLS', { skip: !hasTestDatabase }, async ()
       );
       assert.equal(emailLeak.rowCount, 0);
     });
+
+    await client.query('UPDATE users SET sex = $1 WHERE id = $2', ['male', donorId]);
+    await withHospitalContext(client, { hospitalUserId, hospitalId }, async () => {
+      await client.query('SELECT hospital_record_donor_donation($1)', [donorId]);
+    });
+    const maleEligible = await client.query(
+      `SELECT next_eligible_date = last_donation_date + INTERVAL '90 days' AS ok
+       FROM users WHERE id = $1`,
+      [donorId],
+    );
+    assert.equal(maleEligible.rows[0].ok, true);
+
+    await client.query(
+      'UPDATE users SET sex = $1, last_donation_date = NULL, next_eligible_date = NULL WHERE id = $2',
+      ['female', donorId],
+    );
+    await withHospitalContext(client, { hospitalUserId, hospitalId }, async () => {
+      await client.query('SELECT hospital_record_donor_donation($1)', [donorId]);
+    });
+    const femaleEligible = await client.query(
+      `SELECT next_eligible_date = last_donation_date + INTERVAL '120 days' AS ok
+       FROM users WHERE id = $1`,
+      [donorId],
+    );
+    assert.equal(femaleEligible.rows[0].ok, true);
   } finally {
     await client.query('BEGIN');
     await client.query('DELETE FROM hospitals WHERE id = $1', [hospitalId]);

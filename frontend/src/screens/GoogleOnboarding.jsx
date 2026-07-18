@@ -6,7 +6,7 @@ import { roleHome } from '../lib/roleHome.js';
 export default function GoogleOnboarding() {
   const navigate = useNavigate();
   const { completeGoogleOnboarding } = useAuth();
-  const [form, setForm] = useState({ phone: '', blood_group: 'O+', date_of_birth: '', city: '', state: 'Karnataka' });
+  const [form, setForm] = useState({ phone: '', blood_group: 'O+', date_of_birth: '', sex: '', city: '', state: 'Karnataka' });
   const [consent, setConsent] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -46,6 +46,13 @@ export default function GoogleOnboarding() {
           <label>Phone<input required autoComplete="tel" value={form.phone} onChange={update('phone')} placeholder="+91 98765 43210" /></label>
           <label>Blood group<select value={form.blood_group} onChange={update('blood_group')}>{['O-','O+','A-','A+','B-','B+','AB-','AB+'].map((group) => <option key={group}>{group}</option>)}</select></label>
           <label>Date of birth<input required type="date" value={form.date_of_birth} onChange={update('date_of_birth')} /></label>
+          <label>Sex (NBTC interval)
+            <select required value={form.sex} onChange={update('sex')}>
+              <option value="" disabled>Select</option>
+              <option value="male">Male (90 days)</option>
+              <option value="female">Female (120 days)</option>
+            </select>
+          </label>
           <label>City<input required value={form.city} onChange={update('city')} /></label>
           <label>State<input required value={form.state} onChange={update('state')} /></label>
           <label className="auth-flow__consent">

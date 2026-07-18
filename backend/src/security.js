@@ -30,7 +30,7 @@ export function buildHelmetOptions(isProduction = false) {
 export function applyPrivacyHeaders(req, res, next) {
   res.setHeader(
     'Permissions-Policy',
-    'camera=(), microphone=(), payment=(), usb=(), browsing-topics=(), geolocation=(self)'
+    'camera=(self), microphone=(), payment=(), usb=(), browsing-topics=(), geolocation=(self)'
   );
   res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
   next();

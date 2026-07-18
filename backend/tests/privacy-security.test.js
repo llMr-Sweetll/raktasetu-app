@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildHelmetOptions } from '../src/security.js';
+import { buildHelmetOptions, applyPrivacyHeaders } from '../src/security.js';
 import { buildAccountExport } from '../src/utils/dataExport.js';
+import { isDonorEligible, nbtcIntervalDays } from '../src/utils/eligibility.js';
 
 test('production security policy enables HSTS and restricts browser capabilities', () => {
   const options = buildHelmetOptions(true);
@@ -10,6 +11,24 @@ test('production security policy enables HSTS and restricts browser capabilities
   assert.equal(options.referrerPolicy.policy, 'strict-origin-when-cross-origin');
   assert.deepEqual(options.contentSecurityPolicy.directives.objectSrc, ["'none'"]);
   assert.deepEqual(options.contentSecurityPolicy.directives.frameAncestors, ["'none'"]);
+});
+
+test('Permissions-Policy allows same-origin camera for QR verify', () => {
+  const headers = {};
+  applyPrivacyHeaders({}, { setHeader: (key, value) => { headers[key] = value; } }, () => {});
+  assert.match(headers['Permissions-Policy'], /camera=\(self\)/);
+  assert.match(headers['Permissions-Policy'], /microphone=\(\)/);
+  assert.match(headers['Permissions-Policy'], /payment=\(\)/);
+  assert.match(headers['Permissions-Policy'], /usb=\(\)/);
+});
+
+test('NBTC eligibility intervals are sex-aware with conservative fallback', () => {
+  assert.equal(nbtcIntervalDays('male'), 90);
+  assert.equal(nbtcIntervalDays('female'), 120);
+  assert.equal(nbtcIntervalDays(null), 120);
+  assert.equal(isDonorEligible(null), true);
+  assert.equal(isDonorEligible('2099-01-01'), false);
+  assert.equal(isDonorEligible('2000-01-01'), true);
 });
 
 test('account export contains scoped records and excludes authentication secrets', () => {

@@ -49,17 +49,17 @@ router.post('/register', validate(registrationSchema), async (req, res) => {
       const passwordHash = await bcrypt.hash(input.password, 12);
       const inserted = await client.query(
         `INSERT INTO users (
-           id, email, phone, password_hash, name, role, blood_group, date_of_birth,
+           id, email, phone, password_hash, name, role, blood_group, date_of_birth, sex,
            latitude, longitude, city, state, is_verified, is_on_call, ping_radius_km,
            consent_given, consent_given_at, consent_policy_version, consent_source,
            token_version, account_status, created_at, updated_at
          ) VALUES (
-           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,false,$13,$14,
-           true,$15,$16,'registration_form',0,'active',$15,$15
+           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,false,$14,$15,
+           true,$16,$17,'registration_form',0,'active',$16,$16
          ) RETURNING *`,
         [
           userId, input.email, input.phone, passwordHash, input.name, input.role,
-          input.blood_group || null, input.date_of_birth || null,
+          input.blood_group || null, input.date_of_birth || null, input.sex || null,
           input.latitude ?? null, input.longitude ?? null, input.city, input.state,
           input.role === 'donor' ? false : null,
           input.role === 'donor' ? 10 : null,
@@ -236,14 +236,14 @@ router.post('/google/onboarding', validate(googleOnboardingSchema), async (req, 
       const opaquePassword = await bcrypt.hash(uuidv4() + uuidv4(), 12);
       const inserted = await client.query(
         `INSERT INTO users (
-           id,email,phone,password_hash,name,role,blood_group,date_of_birth,city,state,
+           id,email,phone,password_hash,name,role,blood_group,date_of_birth,sex,city,state,
            is_verified,is_on_call,ping_radius_km,consent_given,consent_given_at,
            consent_policy_version,consent_source,token_version,google_sub,account_status
-         ) VALUES ($1,$2,$3,$4,$5,'donor',$6,$7,$8,$9,false,false,10,true,NOW(),$10,'google_onboarding',0,$11,'active')
+         ) VALUES ($1,$2,$3,$4,$5,'donor',$6,$7,$8,$9,$10,false,false,10,true,NOW(),$11,'google_onboarding',0,$12,'active')
          RETURNING *`,
         [
           userId, pending.email.toLowerCase(), input.phone, opaquePassword, pending.display_name,
-          input.blood_group, input.date_of_birth, input.city, input.state,
+          input.blood_group, input.date_of_birth, input.sex, input.city, input.state,
           input.consent_policy_version, pending.google_sub,
         ],
       );
@@ -411,7 +411,7 @@ router.post('/consent', authenticate, validate(consentSchema), async (req, res) 
 
 router.get('/me', authenticate, async (req, res) => {
   const result = await query(
-    `SELECT u.id,u.email,u.phone,u.name,u.role,u.blood_group,u.date_of_birth,u.latitude,u.longitude,
+    `SELECT u.id,u.email,u.phone,u.name,u.role,u.blood_group,u.date_of_birth,u.sex,u.latitude,u.longitude,
             u.city,u.state,u.is_verified,u.is_on_call,u.ping_radius_km,u.last_donation_date,
             u.next_eligible_date,u.consent_given,u.consent_given_at,u.consent_policy_version,
             u.account_status,u.created_at,u.updated_at,h.id AS hospital_id,h.name AS hospital_name,
@@ -437,7 +437,7 @@ async function readAll(execute, sql, params) {
 router.get('/export', authenticate, async (req, res) => {
   const execute = query;
   const [user, hospitalResult] = await Promise.all([
-    query(`SELECT id,email,phone,name,role,blood_group,date_of_birth,latitude,longitude,city,state,
+    query(`SELECT id,email,phone,name,role,blood_group,date_of_birth,sex,latitude,longitude,city,state,
                   is_verified,is_on_call,ping_radius_km,last_donation_date,next_eligible_date,
                   consent_given,consent_given_at,consent_policy_version,consent_source,created_at,updated_at
            FROM users WHERE id = $1`, [req.user.id]),

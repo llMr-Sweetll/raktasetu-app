@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS users (
   ping_radius_km integer DEFAULT 10,
   last_donation_date date,
   next_eligible_date date,
+  sex text CHECK (sex IS NULL OR sex IN ('male', 'female')),
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now(),
   consent_given boolean NOT NULL DEFAULT false,

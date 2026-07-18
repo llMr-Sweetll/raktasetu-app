@@ -46,6 +46,7 @@ test('registration schema is strict, normalized, and requires an adult donor', (
     role: 'donor',
     blood_group: 'O+',
     date_of_birth: '1990-01-01',
+    sex: 'male',
     city: 'Hubballi',
     state: 'Karnataka',
     consent_given: true,
@@ -53,8 +54,11 @@ test('registration schema is strict, normalized, and requires an adult donor', (
   });
   assert.equal(valid.email, 'donor@example.com');
   assert.equal(valid.phone, '+919876543210');
+  assert.equal(valid.sex, 'male');
   assert.throws(() => registrationSchema.parse({ ...valid, unknown: true }));
   assert.throws(() => registrationSchema.parse({ ...valid, date_of_birth: new Date().toISOString().slice(0, 10) }));
+  const { sex: _omitSex, ...withoutSex } = valid;
+  assert.throws(() => registrationSchema.parse(withoutSex));
 });
 
 test('mutation schemas reject mass assignment and unsafe bounds', () => {

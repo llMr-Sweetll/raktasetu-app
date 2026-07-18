@@ -11,6 +11,7 @@ import {
   paginationSchema,
   validate,
 } from '../validation/schemas.js';
+import { isDonorEligible, nbtcIntervalDays } from '../utils/eligibility.js';
 
 const router = express.Router();
 
@@ -110,7 +111,7 @@ router.get('/dashboard', async (req, res) => {
         },
         nearby_requests: nearbyRequests,
         credits: parseInt(stats.credit_balance) || 0,
-        eligible: !user?.next_eligible_date || new Date(user.next_eligible_date) <= new Date(),
+        eligible: isDonorEligible(user?.next_eligible_date),
         is_on_call: user?.is_on_call || false
       }
     });
@@ -135,21 +136,24 @@ router.patch('/on-call', validate(onCallSchema), async (req, res) => {
 
     if (is_on_call) {
       const eligibility = await query(
-        `SELECT blood_group,date_of_birth,phone,consent_given,next_eligible_date
+        `SELECT blood_group,date_of_birth,sex,phone,consent_given,next_eligible_date
          FROM users WHERE id=$1`,
         [donorId],
       );
       const donor = eligibility.rows[0];
-      if (!donor?.blood_group || !donor?.date_of_birth || !donor?.phone || !donor?.consent_given) {
+      if (!donor?.blood_group || !donor?.date_of_birth || !donor?.sex || !donor?.phone || !donor?.consent_given) {
         return res.status(409).json({
           success: false,
           error: { code: 'DONOR_PROFILE_INCOMPLETE', message: 'Complete your donor profile before going on call' },
         });
       }
-      if (donor.next_eligible_date && new Date(donor.next_eligible_date) > new Date()) {
+      if (!isDonorEligible(donor.next_eligible_date)) {
         return res.status(409).json({
           success: false,
-          error: { code: 'DONOR_NOT_ELIGIBLE', message: 'You are not yet eligible to donate again' },
+          error: {
+            code: 'DONOR_NOT_ELIGIBLE',
+            message: 'You are not yet eligible to donate again under NBTC guidelines',
+          },
         });
       }
     }
@@ -232,6 +236,24 @@ router.post('/respond/:requestId', validate(donorRequestParamsSchema, 'params'),
 
     if (!['accepted', 'declined'].includes(status)) {
       return res.status(400).json({ success: false, error: 'Status must be accepted or declined' });
+    }
+
+    if (status === 'accepted') {
+      const eligibility = await query(
+        'SELECT next_eligible_date, sex FROM users WHERE id = $1',
+        [donorId],
+      );
+      const donor = eligibility.rows[0];
+      if (!isDonorEligible(donor?.next_eligible_date)) {
+        const gapDays = nbtcIntervalDays(donor?.sex);
+        return res.status(409).json({
+          success: false,
+          error: {
+            code: 'DONOR_NOT_ELIGIBLE',
+            message: `You are not yet eligible to donate again (NBTC: ${gapDays}-day interval)`,
+          },
+        });
+      }
     }
 
     // Verify request exists and is open
@@ -419,7 +441,7 @@ router.get('/history', validate(paginationSchema, 'query'), async (req, res) => 
 router.patch('/profile', validate(donorProfileSchema), async (req, res) => {
   try {
     const donorId = req.user.id;
-    const { name, phone, blood_group, date_of_birth, latitude, longitude, city, state, ping_radius_km } = req.body;
+    const { name, phone, blood_group, date_of_birth, sex, latitude, longitude, city, state, ping_radius_km } = req.body;
 
     const updates = [];
     const values = [];
@@ -429,6 +451,7 @@ router.patch('/profile', validate(donorProfileSchema), async (req, res) => {
     if (phone !== undefined) { updates.push(`phone = $${idx++}`); values.push(phone); }
     if (blood_group !== undefined) { updates.push(`blood_group = $${idx++}`); values.push(blood_group); }
     if (date_of_birth !== undefined) { updates.push(`date_of_birth = $${idx++}`); values.push(date_of_birth); }
+    if (sex !== undefined) { updates.push(`sex = $${idx++}`); values.push(sex); }
     if (latitude !== undefined) { updates.push(`latitude = $${idx++}`); values.push(latitude); }
     if (longitude !== undefined) { updates.push(`longitude = $${idx++}`); values.push(longitude); }
     if (city !== undefined) { updates.push(`city = $${idx++}`); values.push(city); }
@@ -446,7 +469,7 @@ router.patch('/profile', validate(donorProfileSchema), async (req, res) => {
     values.push(donorId);
 
     const result = await query(
-      `UPDATE users SET ${updates.join(', ')} WHERE id = $${idx} RETURNING id, email, phone, name, role, blood_group, date_of_birth, latitude, longitude, city, state, is_verified, is_on_call, ping_radius_km, updated_at`,
+      `UPDATE users SET ${updates.join(', ')} WHERE id = $${idx} RETURNING id, email, phone, name, role, blood_group, date_of_birth, sex, latitude, longitude, city, state, is_verified, is_on_call, ping_radius_km, updated_at`,
       values
     );
 

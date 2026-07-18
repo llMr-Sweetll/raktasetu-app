@@ -144,6 +144,7 @@ export default function DonorHome() {
           <p style={{ fontFamily: display, fontWeight: 700, fontSize: 14, margin: '5px 0 0', color: eligible ? T.leaf : T.arterial, display: 'flex', alignItems: 'center', gap: 5 }}>
             <CheckCircle2 size={15} /> {eligible ? 'Eligible now' : nextEligible ? `Eligible ${nextEligible}` : 'Not eligible'}
           </p>
+          <p style={{ fontFamily: body, fontSize: 10, color: T.faint, margin: '4px 0 0' }}>NBTC: male 90d / female 120d</p>
         </Card>
       </div>
 

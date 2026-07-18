@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 export const CURRENT_POLICY_VERSION = '2026-07-15';
 export const BLOOD_GROUPS = ['O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+'];
+/** Biological sex for NBTC whole-blood deferral intervals (male 90d / female 120d). */
+export const DONOR_SEX = ['male', 'female'];
 const normalizeEmail = (value) => value.trim().toLowerCase();
 export const normalizePhone = (value) => value.replace(/[^\d+]/g, '');
 
@@ -30,6 +32,7 @@ export const registrationSchema = z.object({
   role: z.enum(['donor', 'hospital']),
   blood_group: z.enum(BLOOD_GROUPS).optional(),
   date_of_birth: dateOfBirth.optional(),
+  sex: z.enum(DONOR_SEX).optional(),
   city,
   state,
   latitude: coordinate(-90, 90).optional(),
@@ -41,7 +44,7 @@ export const registrationSchema = z.object({
   consent_policy_version: z.literal(CURRENT_POLICY_VERSION),
 }).strict().superRefine((value, context) => {
   if (value.role === 'donor') {
-    for (const field of ['blood_group', 'date_of_birth']) {
+    for (const field of ['blood_group', 'date_of_birth', 'sex']) {
       if (!value[field]) context.addIssue({ code: 'custom', path: [field], message: `${field} is required` });
     }
   } else {
@@ -74,6 +77,7 @@ export const googleOnboardingSchema = z.object({
   phone,
   blood_group: z.enum(BLOOD_GROUPS),
   date_of_birth: dateOfBirth,
+  sex: z.enum(DONOR_SEX),
   city,
   state,
   consent_given: z.literal(true),
@@ -106,6 +110,7 @@ export const donorProfileSchema = z.object({
   phone: phone.optional(),
   blood_group: z.enum(BLOOD_GROUPS).optional(),
   date_of_birth: dateOfBirth.optional(),
+  sex: z.enum(DONOR_SEX).optional(),
   latitude: coordinate(-90, 90).nullable().optional(),
   longitude: coordinate(-180, 180).nullable().optional(),
   city: city.optional(),

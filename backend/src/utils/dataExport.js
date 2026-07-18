@@ -5,6 +5,8 @@ const ACCOUNT_FIELDS = [
   'name',
   'role',
   'blood_group',
+  'date_of_birth',
+  'sex',
   'latitude',
   'longitude',
   'city',

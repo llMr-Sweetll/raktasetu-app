@@ -24,6 +24,7 @@ export default function Register() {
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
   const [dob, setDob] = useState('');
+  const [sex, setSex] = useState('');
   const [address, setAddress] = useState('');
   const [licenseNumber, setLicenseNumber] = useState('');
   const [consentGiven, setConsentGiven] = useState(false);
@@ -41,7 +42,7 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!name || !phone || !email || !password || !city || !state || (!isHospital && !dob)) {
+    if (!name || !phone || !email || !password || !city || !state || (!isHospital && (!dob || !sex))) {
       setError('Please fill all required fields');
       return;
     }
@@ -74,6 +75,7 @@ export default function Register() {
         name, phone, email, password, role, city, state,
         blood_group: isHospital ? undefined : bloodGroup,
         date_of_birth: isHospital ? undefined : dob,
+        sex: isHospital ? undefined : sex,
         hospital_name: isHospital ? name : undefined,
         address: isHospital ? address : undefined,
         license_number: isHospital ? licenseNumber : undefined,
@@ -217,13 +219,26 @@ export default function Register() {
           </div>
 
           {!isHospital ? (
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ fontFamily: body, fontSize: 11, color: T.mut, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Date of birth</label>
-              <div style={{ position: 'relative' }}>
-                <Calendar size={16} color={T.faint} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
-                <input type="date" aria-label="Date of birth" required value={dob} onChange={(e) => setDob(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
+            <>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontFamily: body, fontSize: 11, color: T.mut, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Date of birth</label>
+                <div style={{ position: 'relative' }}>
+                  <Calendar size={16} color={T.faint} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
+                  <input type="date" aria-label="Date of birth" required value={dob} onChange={(e) => setDob(e.target.value)} style={{ ...inputStyle, paddingLeft: 40 }} />
+                </div>
               </div>
-            </div>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontFamily: body, fontSize: 11, color: T.mut, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Sex (for NBTC donation interval)</label>
+                <select aria-label="Sex" required value={sex} onChange={(e) => setSex(e.target.value)} style={inputStyle}>
+                  <option value="" disabled>Select</option>
+                  <option value="male">Male (90-day gap)</option>
+                  <option value="female">Female (120-day gap)</option>
+                </select>
+                <p style={{ fontFamily: body, fontSize: 11, color: T.faint, margin: '6px 0 0' }}>
+                  Used only for India NBTC/NACO whole-blood eligibility intervals.
+                </p>
+              </div>
+            </>
           ) : (
             <>
               <div style={{ marginBottom: 12 }}>
