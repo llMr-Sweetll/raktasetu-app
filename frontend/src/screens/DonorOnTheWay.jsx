@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { CheckCircle2, Navigation, Phone, QrCode, ArrowLeft } from 'lucide-react';
+import { CheckCircle2, Navigation, Phone, ArrowLeft } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { T } from '../theme.js';
 import Card from '../components/Card.jsx';
 import Btn from '../components/Btn.jsx';
@@ -15,7 +16,7 @@ export default function DonorOnTheWay() {
   const navigate = useNavigate();
   const [request, setRequest] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [_qrData, setQrData] = useState('');
+  const [qrData, setQrData] = useState('');
   const [arrived, setArrived] = useState(false);
   const [arriving, setArriving] = useState(false);
 
@@ -62,7 +63,7 @@ export default function DonorOnTheWay() {
   if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: body }}>Loading...</div>;
 
   return (
-    <div style={{ padding: '18px 18px 90px', maxWidth: 430, margin: '0 auto' }}>
+    <div style={{ padding: '18px 18px calc(90px + env(safe-area-inset-bottom))', maxWidth: 430, margin: '0 auto' }}>
       <button onClick={() => navigate('/home')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12, fontFamily: body, fontSize: 13, color: T.mut }}>
         <ArrowLeft size={16} /> Back to home
       </button>
@@ -97,8 +98,26 @@ export default function DonorOnTheWay() {
       </Card>
 
       <Card style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 14 }}>
-        <div style={{ width: 74, height: 74, borderRadius: 12, border: `1.5px solid ${T.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff' }}>
-          <QrCode size={46} color={T.ink} />
+        <div
+          style={{
+            width: 74,
+            height: 74,
+            borderRadius: 12,
+            border: `1.5px solid ${T.line}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#fff',
+            padding: 5,
+          }}
+          aria-label="Donation verification QR code"
+        >
+          <QRCodeSVG
+            value={qrData || `RS-DONOR-${requestId}`}
+            size={64}
+            bgColor="#FFFFFF"
+            fgColor="#17151A"
+          />
         </div>
         <div>
           <p style={{ fontFamily: display, fontWeight: 700, fontSize: 14.5, margin: 0, color: T.ink }}>Show this at the desk</p>
