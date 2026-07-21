@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS blood_requests (
   ref_code varchar,
   needed_by timestamptz,
   filled_at timestamptz,
+  escalation_level integer NOT NULL DEFAULT 0,
   created_at timestamptz DEFAULT now()
 );
 

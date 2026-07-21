@@ -3,8 +3,21 @@ import { query } from '../db.js';
 import { withAuthorizationContext } from '../db/authorizedTransaction.js';
 import { authenticate, requireActiveAccount, requireRole } from '../middleware/auth.js';
 import { disconnectUser } from '../realtime/publisher.js';
+import {
+  getMetricsSummary,
+  getRareMetrics,
+  getResponseTimes,
+  responseTimesToCsv,
+} from '../services/metricsService.js';
 import { logAudit } from '../utils/compliance.js';
-import { decodeCursor, encodeCursor, hospitalApprovalSchema, paginationSchema, validate } from '../validation/schemas.js';
+import {
+  decodeCursor,
+  encodeCursor,
+  hospitalApprovalSchema,
+  metricsRangeSchema,
+  paginationSchema,
+  validate,
+} from '../validation/schemas.js';
 
 const router = express.Router();
 router.use(authenticate, requireActiveAccount, requireRole('admin'));
@@ -94,6 +107,77 @@ router.get('/stats', async (req, res) => {
   );
   await logAudit({ userId: req.user.id, action: 'ADMIN_VIEW_STATS', resourceType: 'platform', req });
   return res.json({ success: true, data: { stats: result.rows[0] } });
+});
+
+router.get('/metrics/summary', validate(metricsRangeSchema, 'query'), async (req, res) => {
+  try {
+    const data = await getMetricsSummary({ from: req.query.from, to: req.query.to });
+    await logAudit({
+      userId: req.user.id, action: 'ADMIN_VIEW_METRICS_SUMMARY', resourceType: 'platform',
+      details: { from: data.from, to: data.to }, req,
+    });
+    return res.json({ success: true, data });
+  } catch (error) {
+    const status = error.status || 500;
+    return res.status(status).json({
+      success: false,
+      error: { code: error.code || 'METRICS_FAILED', message: error.message || 'Metrics failed' },
+    });
+  }
+});
+
+router.get('/metrics/response-times', validate(metricsRangeSchema, 'query'), async (req, res) => {
+  try {
+    const data = await getResponseTimes({ from: req.query.from, to: req.query.to });
+    await logAudit({
+      userId: req.user.id, action: 'ADMIN_VIEW_METRICS_RESPONSE_TIMES', resourceType: 'platform',
+      details: { from: data.from, to: data.to, request_count: data.requests.length }, req,
+    });
+    return res.json({ success: true, data });
+  } catch (error) {
+    const status = error.status || 500;
+    return res.status(status).json({
+      success: false,
+      error: { code: error.code || 'METRICS_FAILED', message: error.message || 'Metrics failed' },
+    });
+  }
+});
+
+router.get('/metrics/rare', validate(metricsRangeSchema, 'query'), async (req, res) => {
+  try {
+    const data = await getRareMetrics({ from: req.query.from, to: req.query.to });
+    await logAudit({
+      userId: req.user.id, action: 'ADMIN_VIEW_METRICS_RARE', resourceType: 'platform',
+      details: { from: data.from, to: data.to }, req,
+    });
+    return res.json({ success: true, data });
+  } catch (error) {
+    const status = error.status || 500;
+    return res.status(status).json({
+      success: false,
+      error: { code: error.code || 'METRICS_FAILED', message: error.message || 'Metrics failed' },
+    });
+  }
+});
+
+router.get('/metrics/export.csv', validate(metricsRangeSchema, 'query'), async (req, res) => {
+  try {
+    const data = await getResponseTimes({ from: req.query.from, to: req.query.to });
+    const csv = responseTimesToCsv(data);
+    await logAudit({
+      userId: req.user.id, action: 'ADMIN_EXPORT_METRICS_CSV', resourceType: 'platform',
+      details: { from: data.from, to: data.to, request_count: data.requests.length }, req,
+    });
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="raktasetu-pilot-metrics.csv"');
+    return res.status(200).send(csv);
+  } catch (error) {
+    const status = error.status || 500;
+    return res.status(status).json({
+      success: false,
+      error: { code: error.code || 'METRICS_FAILED', message: error.message || 'Metrics failed' },
+    });
+  }
 });
 
 router.post('/hospitals/:id/approval', validate(hospitalApprovalSchema), async (req, res) => {

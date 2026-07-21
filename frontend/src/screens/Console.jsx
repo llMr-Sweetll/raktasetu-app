@@ -6,6 +6,7 @@ import Chip from '../components/Chip.jsx';
 import Card from '../components/Card.jsx';
 import api from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
+import { t } from '../i18n.js';
 
 const body = "'Public Sans', 'Segoe UI', system-ui, sans-serif";
 const display = "'Anek Latin', 'Segoe UI', system-ui, sans-serif";
@@ -16,6 +17,7 @@ export default function Console() {
   const { user, logout } = useAuth();
   const [tab, setTab] = useState('board');
   const [requests, setRequests] = useState([]);
+  const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -34,11 +36,15 @@ export default function Console() {
 
   const fetchDashboard = async () => {
     try {
-      const { data: response } = await api.get('/hospital/dashboard');
+      const [{ data: response }, metricsRes] = await Promise.all([
+        api.get('/hospital/dashboard'),
+        api.get('/hospital/metrics/summary').catch(() => null),
+      ]);
       const payload = response.data || response;
       setRequests(payload.requests || []);
+      if (metricsRes?.data?.data) setMetrics(metricsRes.data.data);
     } catch (_err) {
-      setError('Failed to load live board');
+      setError(t('metrics.consoleLoadFailed'));
     } finally {
       setLoading(false);
     }
@@ -49,6 +55,8 @@ export default function Console() {
     ['new', '/console/new-request', 'New request'],
     ['verify', '/console/verify', 'Verify donor'],
   ];
+
+  const fillPct = metrics?.fill_rate == null ? '—' : `${Math.round(metrics.fill_rate * 100)}%`;
 
   return (
     <div style={{ minHeight: '100vh', background: T.consoleBg, color: '#F0EEE9', maxWidth: 430, margin: '0 auto', position: 'relative' }}>
@@ -74,6 +82,21 @@ export default function Console() {
 
       {tab === 'board' && (
         <div style={{ padding: '16px 16px 20px' }}>
+          {metrics ? (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 14 }}>
+              {[
+                [fillPct, t('metrics.fillRate')],
+                [metrics.total_requests ?? 0, t('metrics.consoleRequests')],
+                [metrics.donations_count ?? 0, t('metrics.consoleDonations')],
+              ].map(([value, label]) => (
+                <div key={label} style={{ background: T.consoleCard, border: `1px solid ${T.consoleLine}`, borderRadius: 10, padding: '10px 8px', textAlign: 'center' }}>
+                  <p style={{ fontFamily: display, fontWeight: 800, fontSize: 18, margin: 0, color: '#F0EEE9' }}>{value}</p>
+                  <p style={{ fontFamily: body, fontSize: 10, color: T.consoleMut, margin: '4px 0 0', textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <p style={{ fontFamily: body, fontSize: 12, color: T.consoleMut, margin: 0 }}>Live board · {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
             <Chip tone="green" dark>Bank verified</Chip>

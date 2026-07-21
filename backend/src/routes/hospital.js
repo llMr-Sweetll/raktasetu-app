@@ -11,12 +11,16 @@ import {
   donationCompletionSchema,
   donorSearchQuerySchema,
   hospitalRequestQuerySchema,
+  metricsRangeSchema,
   requestCreateSchema,
   requestIdParamsSchema,
   requestStatusSchema,
   validate,
   verifyRedemptionSchema,
 } from '../validation/schemas.js';
+import { authorize } from '../auth/policy.js';
+import { getMetricsSummary } from '../services/metricsService.js';
+import { logAudit } from '../utils/compliance.js';
 
 const router = express.Router();
 
@@ -163,14 +167,15 @@ router.post('/requests', validate(requestCreateSchema), async (req, res) => {
     const isRare = RARE.includes(blood_group);
     const effectiveRadius = isRare ? 25 : radiusNum;
 
+    const escalationLevel = isRare ? 1 : 0;
     const result = await query(
-      `INSERT INTO blood_requests (id, hospital_id, blood_group, units_needed, urgency, status, radius_km, latitude, longitude, notes, ref_code, needed_by, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+      `INSERT INTO blood_requests (id, hospital_id, blood_group, units_needed, urgency, status, radius_km, latitude, longitude, notes, ref_code, needed_by, escalation_level, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
        RETURNING *`,
       [
         requestId, hospital.id, blood_group, unitsNum, urgency, 'open',
         effectiveRadius, hospital.latitude, hospital.longitude,
-        notes || null, refCode, needed_by ? new Date(needed_by) : null
+        notes || null, refCode, needed_by ? new Date(needed_by) : null, escalationLevel,
       ]
     );
 
@@ -465,6 +470,47 @@ router.get('/donors', validate(donorSearchQuerySchema, 'query'), async (req, res
   } catch (err) {
     console.error('Nearby donors error:', err);
     return res.status(500).json({ success: false, error: 'Failed to fetch nearby donors' });
+  }
+});
+
+/**
+ * GET /api/hospital/metrics/summary
+ * Pilot aggregates for the caller's hospital only (no donor PII).
+ */
+router.get('/metrics/summary', validate(metricsRangeSchema, 'query'), async (req, res) => {
+  const hospitalId = req.user.hospital_id;
+  const decision = authorize({
+    actor: req.user,
+    action: 'hospital.metrics.read',
+    resource: { hospital_id: hospitalId },
+  });
+  if (!decision.allowed) {
+    return res.status(decision.status).json({
+      success: false,
+      error: { code: decision.code, message: 'Access denied' },
+    });
+  }
+  try {
+    const data = await getMetricsSummary({
+      from: req.query.from,
+      to: req.query.to,
+      hospitalId,
+    });
+    await logAudit({
+      userId: req.user.id,
+      action: 'HOSPITAL_VIEW_METRICS_SUMMARY',
+      resourceType: 'hospital',
+      resourceId: hospitalId,
+      details: { from: data.from, to: data.to },
+      req,
+    });
+    return res.json({ success: true, data });
+  } catch (error) {
+    const status = error.status || 500;
+    return res.status(status).json({
+      success: false,
+      error: { code: error.code || 'METRICS_FAILED', message: error.message || 'Metrics failed' },
+    });
   }
 });
 

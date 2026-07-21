@@ -92,6 +92,12 @@ export const paginationSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(25),
   cursor: z.string().max(300).optional(),
 }).strict();
+
+/** Optional ISO date range for pilot metrics (defaults applied in metricsService). */
+export const metricsRangeSchema = z.object({
+  from: z.iso.datetime({ offset: true }).or(z.iso.date()).optional(),
+  to: z.iso.datetime({ offset: true }).or(z.iso.date()).optional(),
+}).strict();
 export const hospitalRequestQuerySchema = z.object({
   ref: z.string().trim().min(4).max(32).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(25),

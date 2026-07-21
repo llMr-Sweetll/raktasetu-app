@@ -2,6 +2,20 @@
 
 All notable changes to RaktaSetu are documented in this file.
 
+## [2.0.8] — 2026-07-21
+
+### Added
+
+- Pilot metrics (admin): summary, response-time funnel (p50/p90), rare-type (O−/AB−) panel, and CSV export — aggregates only, no donor PII
+- Hospital console metrics strip from `GET /api/hospital/metrics/summary` (caller hospital only)
+- Admin dashboard “Pilot metrics” tab: fill rate, p50 first-accept, on-call donors, SVG requests/day chart, date range, CSV download
+- Deterministic metrics mini-scenario in test fixtures; backend metrics + access-matrix coverage
+- `blood_requests.escalation_level` column for rare-type escalation tracking
+
+### Changed
+
+- Package / health version bumped to `2.0.8`
+
 ## [2.0.7] — 2026-07-19
 
 ### Added

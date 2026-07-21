@@ -41,3 +41,22 @@ test('credit redemption actions follow donor/hospital ownership', () => {
   assert.equal(authorize({ actor: hospital, action: 'hospital.redemption.verify', resource: { hospital_id: 'hospital-b' } }).allowed, false);
   assert.equal(authorize({ actor: donor, action: 'hospital.redemption.verify', resource: { hospital_id: 'hospital-a' } }).allowed, false);
 });
+
+test('pilot metrics: admin-only admin metrics; hospital slice scoped; donor denied', () => {
+  assert.equal(authorize({ actor: admin, action: 'admin.metrics.read' }).allowed, true);
+  assert.equal(authorize({ actor: donor, action: 'admin.metrics.read' }).allowed, false);
+  assert.equal(authorize({ actor: hospital, action: 'admin.metrics.read' }).allowed, false);
+
+  assert.equal(authorize({
+    actor: hospital, action: 'hospital.metrics.read', resource: { hospital_id: hospital.hospital_id },
+  }).allowed, true);
+  assert.equal(authorize({
+    actor: hospital, action: 'hospital.metrics.read', resource: { hospital_id: 'hospital-b' },
+  }).allowed, false);
+  assert.equal(authorize({
+    actor: donor, action: 'hospital.metrics.read', resource: { hospital_id: 'hospital-a' },
+  }).allowed, false);
+  assert.equal(authorize({
+    actor: pendingHospital, action: 'hospital.metrics.read', resource: { hospital_id: 'hospital-a' },
+  }).allowed, false);
+});

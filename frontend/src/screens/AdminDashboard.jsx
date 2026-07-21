@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Building2, Droplet, Award, BarChart3, ArrowLeft, LogOut } from 'lucide-react';
+import { Users, Building2, Droplet, Award, BarChart3, ArrowLeft, LogOut, Download } from 'lucide-react';
 import { T } from '../theme.js';
 import Card from '../components/Card.jsx';
 import api from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
+import { t } from '../i18n.js';
+import { getAccessToken } from '../lib/accessToken.js';
+import { API_URL } from '../config.js';
 
 const body = "'Public Sans', 'Segoe UI', system-ui, sans-serif";
 const display = "'Anek Latin', 'Segoe UI', system-ui, sans-serif";
@@ -14,6 +17,46 @@ function asItems(payload, fallbackKey) {
   if (Array.isArray(payload?.[fallbackKey])) return payload[fallbackKey];
   if (Array.isArray(payload)) return payload;
   return [];
+}
+
+function defaultDateRange() {
+  const to = new Date();
+  const from = new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const iso = (d) => d.toISOString().slice(0, 10);
+  return { from: iso(from), to: iso(to) };
+}
+
+function RequestsPerDayChart({ series }) {
+  const rows = Array.isArray(series) ? series : [];
+  const max = Math.max(1, ...rows.map((r) => r.count || 0));
+  const width = Math.max(280, rows.length * 28);
+  const height = 120;
+  const pad = 8;
+  const barW = rows.length ? Math.max(8, (width - pad * 2) / rows.length - 4) : 8;
+
+  if (rows.length === 0) {
+    return (
+      <p style={{ fontFamily: body, fontSize: 13, color: T.consoleMut, margin: 0 }}>{t('metrics.noDailyData')}</p>
+    );
+  }
+
+  return (
+    <svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={t('metrics.requestsPerDay')}>
+      {rows.map((row, i) => {
+        const h = ((row.count || 0) / max) * (height - pad * 2 - 16);
+        const x = pad + i * ((width - pad * 2) / rows.length);
+        const y = height - pad - 14 - h;
+        return (
+          <g key={row.day}>
+            <rect x={x} y={y} width={barW} height={Math.max(1, h)} fill={T.arterial} rx={2} />
+            <text x={x + barW / 2} y={height - 2} textAnchor="middle" fill={T.consoleMut} fontSize={8} fontFamily={body}>
+              {String(row.day).slice(5)}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
 }
 
 export default function AdminDashboard() {
@@ -26,6 +69,11 @@ export default function AdminDashboard() {
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState('');
   const [tab, setTab] = useState('overview');
+  const [range, setRange] = useState(defaultDateRange);
+  const [summary, setSummary] = useState(null);
+  const [responseTimes, setResponseTimes] = useState(null);
+  const [rare, setRare] = useState(null);
+  const [metricsLoading, setMetricsLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -39,7 +87,7 @@ export default function AdminDashboard() {
       setRequests(asItems(requestsRes.data.data || requestsRes.data, 'requests'));
       setError('');
     } catch (_err) {
-      setError('Failed to load admin data');
+      setError(t('metrics.loadFailed'));
       if (_err.response?.status === 403) {
         await logout();
         navigate('/login');
@@ -49,9 +97,36 @@ export default function AdminDashboard() {
     }
   }, [logout, navigate]);
 
+  const fetchMetrics = useCallback(async () => {
+    setMetricsLoading(true);
+    try {
+      const params = {
+        from: `${range.from}T00:00:00.000Z`,
+        to: `${range.to}T23:59:59.999Z`,
+      };
+      const [sumRes, rtRes, rareRes] = await Promise.all([
+        api.get('/admin/metrics/summary', { params }),
+        api.get('/admin/metrics/response-times', { params }),
+        api.get('/admin/metrics/rare', { params }),
+      ]);
+      setSummary(sumRes.data.data);
+      setResponseTimes(rtRes.data.data);
+      setRare(rareRes.data.data);
+      setError('');
+    } catch (_err) {
+      setError(t('metrics.loadFailed'));
+    } finally {
+      setMetricsLoading(false);
+    }
+  }, [range.from, range.to]);
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (tab === 'metrics') fetchMetrics();
+  }, [tab, fetchMetrics]);
 
   const setHospitalApproval = async (hospitalId, status) => {
     setBusyId(hospitalId);
@@ -60,16 +135,40 @@ export default function AdminDashboard() {
       await api.post(`/admin/hospitals/${hospitalId}/approval`, { status });
       await fetchData();
     } catch (_err) {
-      setError(_err.response?.data?.error?.message || 'Hospital approval update failed');
+      setError(_err.response?.data?.error?.message || t('metrics.approvalFailed'));
     } finally {
       setBusyId('');
+    }
+  };
+
+  const downloadCsv = async () => {
+    try {
+      const params = new URLSearchParams({
+        from: `${range.from}T00:00:00.000Z`,
+        to: `${range.to}T23:59:59.999Z`,
+      });
+      const token = getAccessToken();
+      const res = await fetch(`${API_URL}/admin/metrics/export.csv?${params}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'raktasetu-pilot-metrics.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (_err) {
+      setError(t('metrics.exportFailed'));
     }
   };
 
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: body, color: T.mut, background: '#0A0506' }}>
-        Loading admin dashboard...
+        {t('metrics.loading')}
       </div>
     );
   }
@@ -79,6 +178,10 @@ export default function AdminDashboard() {
   const pendingHospitals = hospitals.filter((h) => (h.approval_status || 'pending') === 'pending');
   const openRequests = requests.filter((r) => r.status === 'open');
   const filledRequests = requests.filter((r) => r.status === 'filled');
+  const fillPct = summary?.fill_rate == null ? '—' : `${Math.round(summary.fill_rate * 100)}%`;
+  const p50Accept = responseTimes?.p50?.minutes_to_first_accept;
+  const oNeg = rare?.rare?.['O-'];
+  const abNeg = rare?.rare?.['AB-'];
 
   return (
     <div className="app-shell app-shell--wide" style={{ minHeight: '100vh', background: '#0A0506', color: '#F8F1EF', margin: '0 auto', padding: '20px 24px 40px' }}>
@@ -118,6 +221,7 @@ export default function AdminDashboard() {
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, borderBottom: '1px solid #3A1A22', paddingBottom: 12, flexWrap: 'wrap' }}>
         {[
           ['overview', 'Overview', BarChart3],
+          ['metrics', t('metrics.tab'), BarChart3],
           ['pending', `Pending (${pendingHospitals.length})`, Building2],
           ['donors', `Donors (${donors.length})`, Users],
           ['hospitals', `Hospitals (${hospitals.length})`, Building2],
@@ -152,6 +256,96 @@ export default function AdminDashboard() {
               <p style={{ fontFamily: body, fontSize: 12, color: '#C9B7B4', margin: '4px 0 0' }}>Pending hospitals</p>
             </div>
           </div>
+        </div>
+      )}
+
+      {tab === 'metrics' && (
+        <div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end', marginBottom: 16 }}>
+            <label style={{ fontFamily: body, fontSize: 12, color: T.consoleMut }}>
+              {t('metrics.from')}
+              <input
+                type="date"
+                value={range.from}
+                onChange={(e) => setRange((r) => ({ ...r, from: e.target.value }))}
+                style={{ display: 'block', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: `1px solid ${T.consoleLine}`, background: T.consoleCard, color: '#F8F1EF', fontFamily: body }}
+              />
+            </label>
+            <label style={{ fontFamily: body, fontSize: 12, color: T.consoleMut }}>
+              {t('metrics.to')}
+              <input
+                type="date"
+                value={range.to}
+                onChange={(e) => setRange((r) => ({ ...r, to: e.target.value }))}
+                style={{ display: 'block', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: `1px solid ${T.consoleLine}`, background: T.consoleCard, color: '#F8F1EF', fontFamily: body }}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={fetchMetrics}
+              style={{ minHeight: 40, borderRadius: 10, border: 'none', background: T.oxblood, color: '#fff', padding: '0 14px', cursor: 'pointer', fontFamily: display, fontWeight: 700 }}
+            >
+              {t('metrics.applyRange')}
+            </button>
+            <button
+              type="button"
+              onClick={downloadCsv}
+              style={{ minHeight: 40, borderRadius: 10, border: `1px solid ${T.consoleLine}`, background: 'transparent', color: '#F8F1EF', padding: '0 14px', cursor: 'pointer', fontFamily: display, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              <Download size={14} /> {t('metrics.downloadCsv')}
+            </button>
+          </div>
+
+          {metricsLoading ? (
+            <p style={{ fontFamily: body, color: T.consoleMut }}>{t('metrics.loading')}</p>
+          ) : (
+            <>
+              <p style={{ fontFamily: display, fontWeight: 800, fontSize: 16, margin: '0 0 12px' }}>{t('metrics.title')}</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 16 }}>
+                <Card dark style={{ background: T.consoleCard, borderColor: T.consoleLine }}>
+                  <p style={{ fontFamily: body, fontSize: 11, color: T.consoleMut, margin: 0 }}>{t('metrics.fillRate')}</p>
+                  <p style={{ fontFamily: display, fontWeight: 800, fontSize: 28, margin: '4px 0 0', color: '#3DBD8A' }}>{fillPct}</p>
+                </Card>
+                <Card dark style={{ background: T.consoleCard, borderColor: T.consoleLine }}>
+                  <p style={{ fontFamily: body, fontSize: 11, color: T.consoleMut, margin: 0 }}>{t('metrics.p50FirstAccept')}</p>
+                  <p style={{ fontFamily: display, fontWeight: 800, fontSize: 28, margin: '4px 0 0', color: '#F8F1EF' }}>
+                    {p50Accept == null ? '—' : t('metrics.minutes', { n: p50Accept })}
+                  </p>
+                </Card>
+                <Card dark style={{ background: T.consoleCard, borderColor: T.consoleLine }}>
+                  <p style={{ fontFamily: body, fontSize: 11, color: T.consoleMut, margin: 0 }}>{t('metrics.activeDonors')}</p>
+                  <p style={{ fontFamily: display, fontWeight: 800, fontSize: 28, margin: '4px 0 0', color: '#D9B45C' }}>
+                    {summary?.median_on_call_count ?? '—'}
+                  </p>
+                </Card>
+              </div>
+
+              <Card dark style={{ background: T.consoleCard, borderColor: T.consoleLine, marginBottom: 16 }}>
+                <p style={{ fontFamily: body, fontSize: 12, color: T.consoleMut, margin: '0 0 8px' }}>{t('metrics.requestsPerDay')}</p>
+                <RequestsPerDayChart series={summary?.requests_by_day} />
+              </Card>
+
+              <Card dark style={{ background: T.consoleCard, borderColor: T.consoleLine }}>
+                <p style={{ fontFamily: display, fontWeight: 700, fontSize: 14, margin: '0 0 10px' }}>{t('metrics.rareTitle')}</p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  {[['O-', oNeg], ['AB-', abNeg]].map(([group, data]) => (
+                    <div key={group} style={{ border: `1px solid ${T.consoleLine}`, borderRadius: 10, padding: 12 }}>
+                      <p style={{ fontFamily: display, fontWeight: 800, fontSize: 18, margin: 0, color: T.arterial }}>{group}</p>
+                      <p style={{ fontFamily: body, fontSize: 12, color: T.consoleMut, margin: '6px 0 0' }}>
+                        {t('metrics.rareCount', { n: data?.request_count ?? 0 })}
+                      </p>
+                      <p style={{ fontFamily: body, fontSize: 12, color: T.consoleMut, margin: '2px 0 0' }}>
+                        {t('metrics.rareFill', { pct: data?.fill_rate == null ? '—' : `${Math.round(data.fill_rate * 100)}%` })}
+                      </p>
+                      <p style={{ fontFamily: body, fontSize: 12, color: T.consoleMut, margin: '2px 0 0' }}>
+                        {t('metrics.rareEscalation', { n: data?.avg_escalation_level ?? 0 })}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </>
+          )}
         </div>
       )}
 
