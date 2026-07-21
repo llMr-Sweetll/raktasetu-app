@@ -2,7 +2,7 @@
 ## Complete Working Application Plan
 
 ### Brand Identity
-- **Name**: RaktaSetu (रक्तसेतु) — "Blood Bridge"
+- **Name**: RaktaSetu (ರಕ್ತಸೇತು) — "Blood Bridge"
 - **Tagline**: "Connect. Donate. Save Lives."
 - **Fonts**: Anek Latin (display), Public Sans (body)
 - **Palette**:

@@ -7,7 +7,7 @@ function Brand() {
       <span className="public-brand__mark" aria-hidden="true" />
       <span className="public-brand__name">
         RaktaSetu
-        <small>रक्तसेतु · Blood Bridge</small>
+        <small>ರಕ್ತಸೇತು · Blood Bridge</small>
       </span>
     </Link>
   );
@@ -91,7 +91,7 @@ export function PublicFooter() {
           </div>
         </div>
         <div className="public-footer__bottom">
-          <span>© 2026 RaktaSetu. रक्तसेतु means Blood Bridge.</span>
+          <span>© 2026 RaktaSetu. ರಕ್ತಸೇತು means Blood Bridge.</span>
           <span>Availability and response times are not guaranteed.</span>
         </div>
       </div>

@@ -23,7 +23,7 @@ export default defineConfig({
         lang: 'en',
         categories: ['health', 'utilities'],
         display: 'standalone',
-        background_color: '#0A0506',
+        background_color: '#F8EFEC',
         theme_color: '#7A1626',
         orientation: 'any',
         icons: [

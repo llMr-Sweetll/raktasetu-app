@@ -4,6 +4,15 @@ All notable changes to RaktaSetu are documented in this file.
 
 ## [Unreleased]
 
+## [2.0.12] — 2026-07-21
+
+### Changed
+
+- No-JS shell and public brand tagline: Kannada `ರಕ್ತಸೇತು` (was Devanagari)
+- `theme-color` / no-JS shell background: oxblood `#7A1626` (was near-black `#0A0506`)
+- PWA `theme_color` oxblood; `background_color` porcelain `#F8EFEC`
+- Frontend package version bumped to `2.0.12`
+
 ## [2.0.11] — 2026-07-21
 
 ### Added

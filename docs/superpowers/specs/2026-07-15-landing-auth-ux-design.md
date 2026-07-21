@@ -17,7 +17,7 @@ From `plan.md` and prior landing design:
 
 | Token | Value | Use |
 |-------|-------|-----|
-| Name | RaktaSetu (रक्तसेतु) — "Blood Bridge" | Brand hero |
+| Name | RaktaSetu (ರಕ್ತಸೇತು) — "Blood Bridge" | Brand hero |
 | Tagline | Connect. Donate. Save Lives. | Supporting line |
 | Display font | Anek Latin | Headlines, CTAs |
 | Body font | Public Sans | Body, forms |
@@ -70,7 +70,7 @@ From `plan.md` and prior landing design:
 
 ### Sections (one job each)
 
-1. **Hero** — Brand “RaktaSetu”, Hindi subtitle optional “रक्तसेतु”, headline “The living bridge between donors and hospitals.”, tagline support, primary “Sign in as donor”, secondary “Create account”. Full-bleed Living Bridge.
+1. **Hero** — Brand “RaktaSetu”, Kannada subtitle optional “ರಕ್ತಸೇತು”, headline “The living bridge between donors and hospitals.”, tagline support, primary “Sign in as donor”, secondary “Create account”. Full-bleed Living Bridge.
 2. **Mission** — “Connect donors and hospitals in real time when blood is needed.” Short paragraph on GPS matching and emergency pings.
 3. **Vision** — “No emergency unanswered — a living network of verified donors across India.”
 4. **How it works** — Three short steps: Go on call → Get matched → Donate & earn credits. Not a card grid of marketing fluff; simple numbered process (order matters).
