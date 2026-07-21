@@ -18,7 +18,9 @@ if (!connectionString) {
 const directory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../db/migrations');
 const client = new Client({
   connectionString,
-  ssl: connectionString.includes('localhost') ? false : { rejectUnauthorized: false },
+  ssl: (connectionString.includes('localhost') || connectionString.includes('127.0.0.1'))
+    ? false
+    : { rejectUnauthorized: false },
 });
 
 await client.connect();

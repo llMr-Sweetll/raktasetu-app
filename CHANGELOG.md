@@ -2,6 +2,28 @@
 
 All notable changes to RaktaSetu are documented in this file.
 
+## [Unreleased]
+
+## [2.0.9] — 2026-07-21
+
+### Added
+
+- Playwright full-loop e2e for the KLE demo path (`frontend/e2e/full-loop.spec.js`): hospital broadcast → donor accept (Kannada) → arrive → verify → credits; optional redemption when UI present
+- `npm run test:e2e:full` (frontend/root) migrates + seeds the local/CI test DB, then runs the loop against Vite `:5173` + API `:3001`
+- Frontend CI `full-loop` job with disposable Postgres (never production Neon)
+- Demo fixtures: approved Fixture Hospital + on-call O+ Fixture Donor at Hubballi coords
+
+### Fixed
+
+- Hospital live board `pinged` count now reflects blood-request notifications (was counting only `donor_responses`, so newly broadcast requests showed 0)
+- `Card` forwards DOM props (`onClick`, `role`, etc.) so donor request list cards are clickable again
+- Local migrate/fixture scripts treat `127.0.0.1` as non-SSL (same as `localhost`)
+- `hospital_complete_redemption` qualifies `redemptions.status` so PL/pgSQL no longer treats RETURNS TABLE `status` as ambiguous (blocked hospital Redeem)
+
+### Changed
+
+- Package / health version bumped to `2.0.9`
+
 ## [2.0.8] — 2026-07-21
 
 ### Added

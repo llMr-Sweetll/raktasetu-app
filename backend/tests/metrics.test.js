@@ -19,9 +19,9 @@ const hasTestDatabase = Boolean(process.env.TEST_DATABASE_URL?.startsWith('postg
 const METRICS_FIXTURE = {
   hospitalA: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
   hospitalB: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1',
-  request1: 'rrrrrrrr-rrrr-4rrr-8rrr-rrrrrrrrrrr1',
-  request2: 'rrrrrrrr-rrrr-4rrr-8rrr-rrrrrrrrrrr2',
-  request3: 'rrrrrrrr-rrrr-4rrr-8rrr-rrrrrrrrrrr3',
+  request1: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc1',
+  request2: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc2',
+  request3: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc3',
 };
 
 test('percentile and date-range helpers', () => {

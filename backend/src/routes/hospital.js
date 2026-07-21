@@ -81,7 +81,9 @@ router.get('/dashboard', async (req, res) => {
       `SELECT br.*,
         (SELECT COUNT(*) FROM donor_responses dr WHERE dr.request_id = br.id AND dr.status = 'accepted') AS accepted_count,
         (SELECT COUNT(*) FROM donor_responses dr WHERE dr.request_id = br.id AND dr.status = 'arrived') AS arrived_count,
-        (SELECT COUNT(*) FROM donor_responses dr WHERE dr.request_id = br.id) AS donors_pinged,
+        (SELECT COUNT(*) FROM notifications n
+          WHERE n.type = 'blood_request'
+            AND (n.data->>'request_id') = br.id::text) AS donors_pinged,
         (SELECT COALESCE(SUM(units), 0) FROM donations d WHERE d.request_id = br.id AND d.verified_at IS NOT NULL) AS filled_units
        FROM blood_requests br
        WHERE br.hospital_id = $1 AND br.status IN ('open', 'filled')

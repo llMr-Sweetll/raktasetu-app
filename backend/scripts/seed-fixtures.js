@@ -12,8 +12,20 @@ if (!process.env.TEST_DATABASE_URL || !process.env.FIXTURE_PASSWORD) {
 const { Client } = pg;
 const client = new Client({
   connectionString: process.env.TEST_DATABASE_URL,
-  ssl: process.env.TEST_DATABASE_URL.includes('localhost') ? false : { rejectUnauthorized: false },
+  ssl: (process.env.TEST_DATABASE_URL.includes('localhost') || process.env.TEST_DATABASE_URL.includes('127.0.0.1'))
+    ? false
+    : { rejectUnauthorized: false },
 });
+
+/** Deterministic UUIDs for KLE demo / full-loop e2e (Hubballi coords). */
+const DEMO_FIXTURE = {
+  donor: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1',
+  hospitalUser: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2',
+  admin: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee3',
+  hospital: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee4',
+};
+const DEMO_LAT = 15.3647;
+const DEMO_LNG = 75.124;
 
 /** Deterministic UUIDs for metrics mini-scenario (stable across re-seeds). */
 const METRICS_FIXTURE = {
@@ -24,9 +36,9 @@ const METRICS_FIXTURE = {
   donor1: 'dddddddd-dddd-4ddd-8ddd-ddddddddddd1',
   donor2: 'dddddddd-dddd-4ddd-8ddd-ddddddddddd2',
   donor3: 'dddddddd-dddd-4ddd-8ddd-ddddddddddd3',
-  request1: 'rrrrrrrr-rrrr-4rrr-8rrr-rrrrrrrrrrr1',
-  request2: 'rrrrrrrr-rrrr-4rrr-8rrr-rrrrrrrrrrr2',
-  request3: 'rrrrrrrr-rrrr-4rrr-8rrr-rrrrrrrrrrr3',
+  request1: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc1',
+  request2: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc2',
+  request3: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc3',
   // Staggered funnel (minutes from request created_at):
   // R1: accept 10, arrive 30, complete 60
   // R2: accept 20, arrive 40, complete 90
@@ -36,25 +48,120 @@ const METRICS_FIXTURE = {
 await client.connect();
 try {
   const passwordHash = await bcrypt.hash(process.env.FIXTURE_PASSWORD, 12);
-  const fixtures = [
-    ['donor@test.invalid', '+15550000001', 'Fixture Donor', 'donor'],
-    ['hospital@test.invalid', '+15550000002', 'Fixture Hospital', 'hospital'],
-    ['admin@test.invalid', '+15550000003', 'Fixture Admin', 'admin'],
-  ];
   await client.query('BEGIN');
-  for (const [email, phone, name, role] of fixtures) {
-    const id = uuidv4();
-    await client.query(
-      `INSERT INTO users (
-         id,email,phone,password_hash,name,role,blood_group,date_of_birth,city,state,
-         is_verified,is_on_call,ping_radius_km,consent_given,consent_given_at,
-         consent_policy_version,consent_source,account_status,token_version,created_at,updated_at
-       ) VALUES (
-         $1,$2,$3,$4,$5,$6,$7,$8,'Test City','Test State',true,false,$9,true,NOW(),
-         '2026-07-15','test_fixture','active',0,NOW(),NOW()
-       ) ON CONFLICT (email) DO UPDATE SET password_hash=EXCLUDED.password_hash,updated_at=NOW()`,
-      [id, email, phone, passwordHash, name, role, role === 'donor' ? 'O+' : null, role === 'donor' ? '1990-01-01' : null, role === 'donor' ? 10 : null],
+
+  // Demo path: approved hospital + on-call O+ donor within request radius (full-loop e2e / KLE demo).
+  // Password: FIXTURE_PASSWORD env (local/CI only; script refuses production).
+  const upsertDemoUser = async ({
+    preferredId, email, phone, name, role, bloodGroup = null, onCall = false, lat = null, lng = null,
+  }) => {
+    const existing = await client.query(
+      'SELECT id FROM users WHERE lower(email) = lower($1) AND deleted_at IS NULL',
+      [email],
     );
+    const id = existing.rows[0]?.id || preferredId;
+    if (existing.rows[0]) {
+      const isDonor = role === 'donor';
+      await client.query(
+        `UPDATE users SET
+           password_hash=$2, name=$3, role=$4, blood_group=$5, phone=$6,
+           date_of_birth=CASE WHEN $10 THEN COALESCE(date_of_birth, '1990-01-01'::date) ELSE date_of_birth END,
+           sex=CASE WHEN $10 THEN COALESCE(sex, 'male') ELSE sex END,
+           city='Hubballi', state='Karnataka',
+           latitude=COALESCE($7, latitude), longitude=COALESCE($8, longitude),
+           is_verified=true, is_on_call=$9,
+           ping_radius_km=CASE WHEN $10 THEN 10 ELSE ping_radius_km END,
+           next_eligible_date=CASE WHEN $10 THEN NULL ELSE next_eligible_date END,
+           last_donation_date=CASE WHEN $10 THEN NULL ELSE last_donation_date END,
+           account_status='active', updated_at=NOW()
+         WHERE id=$1`,
+        [id, passwordHash, name, role, bloodGroup, phone, lat, lng, onCall, isDonor],
+      );
+    } else {
+      await client.query(
+        `INSERT INTO users (
+           id,email,phone,password_hash,name,role,blood_group,date_of_birth,sex,city,state,
+           latitude,longitude,is_verified,is_on_call,ping_radius_km,consent_given,consent_given_at,
+           consent_policy_version,consent_source,account_status,token_version,created_at,updated_at
+         ) VALUES (
+           $1,$2,$3,$4,$5,$6,$7,$8,$9,
+           'Hubballi','Karnataka',$10,$11,true,$12,$13,
+           true,NOW(),'2026-07-15','test_fixture','active',0,NOW(),NOW()
+         )`,
+        [
+          id, email, phone, passwordHash, name, role, bloodGroup,
+          role === 'donor' ? '1990-01-01' : null,
+          role === 'donor' ? 'male' : null,
+          lat, lng, onCall,
+          role === 'donor' ? 10 : null,
+        ],
+      );
+    }
+    return id;
+  };
+
+  const donorId = await upsertDemoUser({
+    preferredId: DEMO_FIXTURE.donor, email: 'donor@test.invalid', phone: '+15550000001',
+    name: 'Fixture Donor', role: 'donor', bloodGroup: 'O+', onCall: true, lat: DEMO_LAT, lng: DEMO_LNG,
+  });
+  const hospitalUserId = await upsertDemoUser({
+    preferredId: DEMO_FIXTURE.hospitalUser, email: 'hospital@test.invalid', phone: '+15550000002',
+    name: 'Fixture Hospital', role: 'hospital',
+  });
+  await upsertDemoUser({
+    preferredId: DEMO_FIXTURE.admin, email: 'admin@test.invalid', phone: '+15550000003',
+    name: 'Fixture Admin', role: 'admin',
+  });
+
+  const existingHospital = await client.query('SELECT id FROM hospitals WHERE user_id = $1', [hospitalUserId]);
+  if (existingHospital.rows[0]) {
+    await client.query(
+      `UPDATE hospitals SET
+         name='Fixture Hospital Blood Bank', address='KLE Campus Road', city='Hubballi', state='Karnataka',
+         license_number=COALESCE(license_number, 'LIC-DEMO-E2E'), approval_status='approved',
+         latitude=$2, longitude=$3, phone='+15550000002', is_verified=true,
+         approved_at=COALESCE(approved_at, NOW()), updated_at=NOW()
+       WHERE id=$1`,
+      [existingHospital.rows[0].id, DEMO_LAT, DEMO_LNG],
+    );
+  } else {
+    await client.query(
+      `INSERT INTO hospitals (
+         id,user_id,name,address,city,state,license_number,approval_status,latitude,longitude,
+         phone,is_verified,approved_at,created_at,updated_at
+       ) VALUES (
+         $1,$2,'Fixture Hospital Blood Bank','KLE Campus Road','Hubballi','Karnataka','LIC-DEMO-E2E',
+         'approved',$3,$4,'+15550000002',true,NOW(),NOW(),NOW()
+       )`,
+      [DEMO_FIXTURE.hospital, hospitalUserId, DEMO_LAT, DEMO_LNG],
+    );
+  }
+
+  // Reset demo-path ledger / open requests so full-loop e2e starts from a clean balance.
+  const hospitalRow = await client.query('SELECT id FROM hospitals WHERE user_id = $1', [hospitalUserId]);
+  const demoHospitalId = hospitalRow.rows[0]?.id;
+  if (demoHospitalId) {
+    await client.query(
+      `DELETE FROM credits WHERE donor_id = $1
+         OR related_donation_id IN (SELECT id FROM donations WHERE hospital_id = $2)
+         OR related_redemption_id IN (SELECT id FROM redemptions WHERE donor_id = $1)`,
+      [donorId, demoHospitalId],
+    );
+    await client.query('DELETE FROM redemptions WHERE donor_id = $1', [donorId]);
+    await client.query('DELETE FROM donations WHERE hospital_id = $1 OR donor_id = $2', [demoHospitalId, donorId]);
+    await client.query(
+      `DELETE FROM donor_responses WHERE donor_id = $1
+         OR request_id IN (SELECT id FROM blood_requests WHERE hospital_id = $2)`,
+      [donorId, demoHospitalId],
+    );
+    await client.query(
+      `DELETE FROM notifications WHERE user_id = $1
+         OR (type = 'blood_request' AND (data->>'request_id') IN (
+           SELECT id::text FROM blood_requests WHERE hospital_id = $2
+         ))`,
+      [donorId, demoHospitalId],
+    );
+    await client.query('DELETE FROM blood_requests WHERE hospital_id = $1', [demoHospitalId]);
   }
 
   // --- Metrics mini-scenario: 3 requests, staggered accept/arrive/complete ---
