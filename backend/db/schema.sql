@@ -32,7 +32,10 @@ CREATE TABLE IF NOT EXISTS users (
   consent_source varchar,
   token_version integer NOT NULL DEFAULT 0,
   google_sub varchar UNIQUE,
-  deleted_at timestamptz
+  deleted_at timestamptz,
+  date_of_birth date,
+  account_status varchar NOT NULL DEFAULT 'active'
+    CHECK (account_status IN ('pending_onboarding', 'active', 'suspended', 'deactivated', 'deleted'))
 );
 
 CREATE TABLE IF NOT EXISTS hospitals (

@@ -136,6 +136,17 @@ export const requestCreateSchema = z.object({
 export const requestStatusSchema = z.object({ status: z.enum(['open', 'filled', 'closed']) }).strict();
 export const consentSchema = z.object({ consent_given: z.boolean() }).strict();
 
+export const deleteAccountSchema = z.object({
+  confirm: z.literal('DELETE'),
+  password: z.string().min(1).max(128).optional(),
+}).strict();
+
+export const restoreAccountSchema = z.object({
+  email: email.optional(),
+  phone: phone.optional(),
+  password: z.string().min(1).max(128),
+}).strict().refine((value) => Boolean(value.email) !== Boolean(value.phone), 'Provide exactly one identifier');
+
 export const pushSubscriptionSchema = z.object({
   endpoint: z.url().max(2048).refine((value) => value.startsWith('https://'), 'HTTPS endpoint required'),
   keys: z.object({

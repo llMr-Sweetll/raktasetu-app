@@ -118,16 +118,19 @@ export default function PrivacyPolicy() {
 
         <PolicySection title="6. Retention and deletion">
           <p>
-            Account data and coordination records are currently retained while an account
-            is active and until deletion or operational cleanup occurs. The code supports
-            account anonymization, but it does not yet enforce a complete, legally
-            approved retention schedule across every record type and backup.
+            When you request account deletion, RaktaSetu immediately deactivates the
+            account, signs you out, and removes you from donor matching. For 30 days you
+            may restore the account from the sign-in page. After that window, the
+            retention job anonymizes direct identifiers (name, email, phone, location,
+            date of birth, and similar profile fields) and removes push subscriptions and
+            family-member rows.
           </p>
           <p>
-            The operator must approve retention periods for accounts, requests,
-            donations, audit logs, backups, and legal holds. A deletion request can
-            anonymize direct account identifiers while some transaction or audit records
-            may be retained when a valid legal, safety, or integrity need applies.
+            Donation records, credit ledger entries, and audit logs are retained in
+            anonymized form so blood banks can keep operational and safety traceability.
+            Backups and legal holds may retain copies for longer according to operator
+            policy. This description supports DPDP readiness; it is not a compliance
+            certificate.
           </p>
         </PolicySection>
 

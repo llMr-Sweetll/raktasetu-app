@@ -16,13 +16,20 @@ import { buildAccountExport } from '../utils/dataExport.js';
 import { disconnectUser } from '../realtime/publisher.js';
 import {
   consentSchema,
+  deleteAccountSchema,
   googleLinkSchema,
   googleOnboardingSchema,
   googleTokenSchema,
   loginSchema,
   registrationSchema,
+  restoreAccountSchema,
   validate,
 } from '../validation/schemas.js';
+import {
+  isWithinDeletionGrace,
+  requestAccountDeletion,
+  restoreAccount,
+} from '../services/accountDeletionService.js';
 
 const router = express.Router();
 
@@ -52,7 +59,15 @@ router.post('/register', validate(registrationSchema), async (req, res) => {
   try {
     const result = await withAuthorizationContext({ role: 'auth' }, async (client) => {
       const existing = await client.query(
-        'SELECT 1 FROM users WHERE (lower(email) = $1 OR phone = $2) AND deleted_at IS NULL',
+        `SELECT 1 FROM users
+         WHERE (lower(email) = $1 OR phone = $2)
+           AND (
+             deleted_at IS NULL
+             OR (
+               account_status = 'deactivated'
+               AND deleted_at > NOW() - INTERVAL '30 days'
+             )
+           )`,
         [input.email, input.phone],
       );
       if (existing.rowCount) return { conflict: true };
@@ -125,13 +140,14 @@ router.post('/login', validate(loginSchema), async (req, res) => {
         `SELECT u.*, h.id AS hospital_id, h.approval_status
          FROM users u
          LEFT JOIN hospitals h ON h.user_id = u.id
-         WHERE u.deleted_at IS NULL
-           AND (${email ? 'lower(u.email) = $1' : 'u.phone = $1'})
+         WHERE (${email ? 'lower(u.email) = $1' : 'u.phone = $1'})
+         ORDER BY CASE WHEN u.deleted_at IS NULL THEN 0 ELSE 1 END, u.created_at DESC
          LIMIT 1`,
         [email || phone],
       );
       const user = found.rows[0];
-      if (!user || !await bcrypt.compare(password, user.password_hash)) {
+      if (!user || !user.password_hash || user.password_hash === '[DELETED]'
+          || !await bcrypt.compare(password, user.password_hash)) {
         await logAudit({
           action: 'LOGIN_FAILED',
           resourceType: 'session',
@@ -140,6 +156,12 @@ router.post('/login', validate(loginSchema), async (req, res) => {
           client,
         });
         return { invalid: true };
+      }
+      if (user.deleted_at || user.account_status === 'deactivated' || user.account_status === 'deleted') {
+        if (user.account_status === 'deactivated' && isWithinDeletionGrace(user.deleted_at)) {
+          return { restorable: true };
+        }
+        return { gone: true };
       }
       if (user.account_status !== 'active') return { inactive: user.account_status };
       if (user.role === 'hospital' && user.approval_status !== 'approved') {
@@ -158,6 +180,17 @@ router.post('/login', validate(loginSchema), async (req, res) => {
       return { user, session };
     });
     if (result.invalid) return failure(res, 401, 'INVALID_CREDENTIALS', 'Invalid credentials');
+    if (result.restorable) {
+      return failure(
+        res,
+        403,
+        'ACCOUNT_RESTORABLE',
+        'This account was scheduled for deletion. You can restore it within 30 days using Restore account.',
+      );
+    }
+    if (result.gone) {
+      return failure(res, 410, 'ACCOUNT_GONE', 'This account has been permanently deleted');
+    }
     if (result.inactive) return failure(res, 403, 'ACCOUNT_NOT_ACTIVE', 'Account is not active');
     if (result.hospitalPending) {
       return failure(res, 403, 'HOSPITAL_APPROVAL_PENDING', 'Hospital access is pending administrator approval');
@@ -174,13 +207,52 @@ router.post('/google', validate(googleTokenSchema), async (req, res) => {
     const identity = await verifyGoogleIdentity(req.body.id_token);
     const result = await withAuthorizationContext({ role: 'auth' }, async (client) => {
       const matches = await client.query(
-        `SELECT id, email, name, role, token_version, account_status, google_sub
+        `SELECT id, email, name, role, token_version, account_status, google_sub, deleted_at,
+                consent_source
          FROM users
-         WHERE deleted_at IS NULL AND (google_sub = $1 OR lower(email) = $2)`,
+         WHERE google_sub = $1 OR lower(email) = $2
+         ORDER BY CASE WHEN deleted_at IS NULL THEN 0 ELSE 1 END, created_at DESC`,
         [identity.googleSub, identity.email],
       );
-      const googleMatch = matches.rows.find((row) => row.google_sub === identity.googleSub) || null;
-      const emailMatch = matches.rows.find((row) => row.email.toLowerCase() === identity.email) || null;
+      const activeRows = matches.rows.filter((row) => !row.deleted_at);
+      const googleMatch = activeRows.find((row) => row.google_sub === identity.googleSub) || null;
+      const emailMatch = activeRows.find((row) => row.email.toLowerCase() === identity.email) || null;
+
+      if (!googleMatch && !emailMatch) {
+        const deactivated = matches.rows.find((row) => (
+          row.deleted_at
+          && row.account_status === 'deactivated'
+          && row.google_sub === identity.googleSub
+          && isWithinDeletionGrace(row.deleted_at)
+        ));
+        if (deactivated) {
+          await client.query(
+            `UPDATE users SET account_status = 'active', deleted_at = NULL, updated_at = NOW()
+             WHERE id = $1`,
+            [deactivated.id],
+          );
+          await logAudit({
+            userId: deactivated.id,
+            action: 'ACCOUNT_RESTORED',
+            resourceType: 'user',
+            resourceId: deactivated.id,
+            details: { method: 'google' },
+            req,
+            client,
+          });
+          const restored = { ...deactivated, account_status: 'active', deleted_at: null };
+          const session = await issueSession(restored, client);
+          return { flow: 'session', user: restored, session, restored: true };
+        }
+        const restorableHint = matches.rows.find((row) => (
+          row.deleted_at
+          && row.account_status === 'deactivated'
+          && row.email?.toLowerCase() === identity.email
+          && isWithinDeletionGrace(row.deleted_at)
+        ));
+        if (restorableHint) return { flow: 'restorable' };
+      }
+
       const decision = decideGoogleFlow({ googleMatch, emailMatch });
       if (decision.flow === 'session') {
         const session = await issueSession(googleMatch, client);
@@ -210,6 +282,14 @@ router.post('/google', validate(googleTokenSchema), async (req, res) => {
       }
       return decision;
     });
+    if (result.flow === 'restorable') {
+      return failure(
+        res,
+        403,
+        'ACCOUNT_RESTORABLE',
+        'This account was scheduled for deletion. Restore it within 30 days from the sign-in page.',
+      );
+    }
     if (result.flow === 'privileged_link_denied') {
       return failure(res, 403, 'PRIVILEGED_GOOGLE_LINK_DENIED', 'This Google flow is for donor accounts only');
     }
@@ -488,41 +568,59 @@ router.get('/export', authenticate, async (req, res) => {
   });
 });
 
-router.delete('/me', authenticate, async (req, res) => {
+router.delete('/me', authenticate, validate(deleteAccountSchema), async (req, res) => {
+  // Legacy alias — prefer POST /api/auth/delete-account.
+  return deleteAccountHandler(req, res);
+});
+
+router.post('/delete-account', authenticate, validate(deleteAccountSchema), async (req, res) => {
+  return deleteAccountHandler(req, res);
+});
+
+async function deleteAccountHandler(req, res) {
   try {
-    await withAuthorizationContext(
+    const result = await withAuthorizationContext(
       { userId: req.user.id, role: req.user.role, hospitalId: req.user.hospital_id || '' },
-      async (client) => {
-        await client.query('DELETE FROM push_subscriptions WHERE user_id = $1', [req.user.id]);
-        await client.query('DELETE FROM refresh_tokens WHERE user_id = $1', [req.user.id]);
-        await client.query('DELETE FROM family_members WHERE donor_id = $1', [req.user.id]);
-        await client.query('DELETE FROM notifications WHERE user_id = $1', [req.user.id]);
-        await client.query(
-          `UPDATE users SET
-             email=$1, phone=$2, name='Deleted User', password_hash='[DELETED]',
-             is_on_call=false, is_verified=false, consent_given=false,
-             latitude=NULL, longitude=NULL, blood_group=NULL, google_sub=NULL,
-             account_status='deleted', token_version=token_version+1,
-             consent_given_at=NULL, consent_policy_version=NULL,
-             consent_source='account_deletion', deleted_at=NOW(), updated_at=NOW()
-           WHERE id=$3`,
-          [`deleted_${req.user.id}@anonymized.invalid`, `deleted_${req.user.id.slice(0, 12)}`, req.user.id],
-        );
-        await logAudit({
-          userId: req.user.id,
-          action: 'ACCOUNT_DELETED',
-          resourceType: 'user',
-          resourceId: req.user.id,
-          req,
-          client,
-        });
-      },
+      async (client) => requestAccountDeletion(client, {
+        userId: req.user.id,
+        password: req.body.password,
+        accessClaims: req.auth?.claims,
+        req,
+      }),
     );
     disconnectUser(req.user.id);
-    return res.json({ success: true, data: { message: 'Account identifiers were anonymized' } });
+    clearRefreshCookie(res);
+    return res.json({
+      success: true,
+      data: {
+        message: 'Account deactivated. You can restore within 30 days.',
+        grace_days: result.grace_days,
+      },
+    });
   } catch (error) {
+    if (error.status && error.code) {
+      return failure(res, error.status, error.code, error.message);
+    }
     console.error('Account deletion failed:', error.message);
     return failure(res, 500, 'ACCOUNT_DELETION_FAILED', 'Account deletion failed');
+  }
+}
+
+router.post('/restore-account', validate(restoreAccountSchema), async (req, res) => {
+  const { email, phone, password } = req.body;
+  try {
+    const result = await withAuthorizationContext({ role: 'auth' }, async (client) => {
+      const user = await restoreAccount(client, { email, phone, password, req });
+      const session = await issueSession(user, client);
+      return { user, session };
+    });
+    return sessionResponse(res, req, 200, result.user, result.session, { restored: true });
+  } catch (error) {
+    if (error.status && error.code) {
+      return failure(res, error.status, error.code, error.message);
+    }
+    console.error('Account restore failed:', error.message);
+    return failure(res, 500, 'ACCOUNT_RESTORE_FAILED', 'Account restore failed');
   }
 });
 

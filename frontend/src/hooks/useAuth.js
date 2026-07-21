@@ -121,6 +121,14 @@ function useAuthState() {
     return session.user;
   };
 
+  const restoreAccount = async (identifier, password) => {
+    const payload = identifier.includes('@')
+      ? { email: identifier, password }
+      : { phone: identifier, password };
+    const { data } = await api.post('/auth/restore-account', payload);
+    return storeSession(data.data || data);
+  };
+
   const logout = async () => {
     try {
       if (getAccessToken()) {
@@ -147,6 +155,7 @@ function useAuthState() {
     completeGoogleOnboarding,
     linkGoogle,
     register,
+    restoreAccount,
     logout,
     updateUser,
     refetch: fetchUser,

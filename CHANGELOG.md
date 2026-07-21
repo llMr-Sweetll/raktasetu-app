@@ -4,6 +4,19 @@ All notable changes to RaktaSetu are documented in this file.
 
 ## [Unreleased]
 
+## [2.0.10] — 2026-07-21
+
+### Added
+
+- DPDP account deletion with 30-day restore: `POST /api/auth/delete-account` soft-deactivates immediately (sessions revoked, matching off); `POST /api/auth/restore-account` restores within the window
+- Retention job anonymizes deactivated accounts after 30 days while keeping donation/credit/audit rows on the anonymized user id for blood-bank traceability
+- Data Rights deletion flow (typed DELETE, password re-confirm, blocker messaging) and Login restore path when the API returns `ACCOUNT_RESTORABLE`
+
+### Changed
+
+- Package / health version bumped to `2.0.10`
+- Privacy policy retention section documents the 30-day grace and anonymized donation retention decision
+
 ## [2.0.9] — 2026-07-21
 
 ### Added

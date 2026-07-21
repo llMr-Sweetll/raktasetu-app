@@ -4,6 +4,7 @@ import PublicShell from '../components/PublicShell.jsx';
 import api from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
 import usePageMeta from '../hooks/usePageMeta.js';
+import { t } from '../i18n.js';
 
 export default function DataRights() {
   const { user, logout } = useAuth();
@@ -12,6 +13,7 @@ export default function DataRights() {
   const [status, setStatus] = useState('');
   const [showDelete, setShowDelete] = useState(false);
   const [confirmation, setConfirmation] = useState('');
+  const [password, setPassword] = useState('');
 
   usePageMeta({
     title: 'Data Rights Center | RaktaSetu',
@@ -34,9 +36,9 @@ export default function DataRights() {
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
-      setStatus('Your account export has been downloaded to this device.');
+      setStatus(t('dataRights.exportReady'));
     } catch (error) {
-      setStatus(error.response?.data?.error || 'We could not prepare the export. Contact privacy@raktasetu.org for help.');
+      setStatus(error.response?.data?.error?.message || error.response?.data?.error || t('dataRights.exportFailed'));
     } finally {
       setBusy('');
     }
@@ -47,11 +49,21 @@ export default function DataRights() {
     setBusy('delete');
     setStatus('');
     try {
-      await api.delete('/auth/me');
-      logout();
-      navigate('/', { replace: true });
+      const body = { confirm: 'DELETE' };
+      if (password) body.password = password;
+      await api.post('/auth/delete-account', body);
+      await logout();
+      navigate('/login', { replace: true, state: { accountDeleted: true } });
     } catch (error) {
-      setStatus(error.response?.data?.error || 'Account deletion could not be completed. Contact privacy@raktasetu.org.');
+      const code = error.response?.data?.error?.code;
+      const message = error.response?.data?.error?.message || error.response?.data?.error;
+      if (code === 'ACCOUNT_DELETION_BLOCKED') {
+        setStatus(message || t('dataRights.deleteBlocked'));
+      } else if (code === 'RECENT_AUTH_REQUIRED') {
+        setStatus(t('dataRights.passwordRequired'));
+      } else {
+        setStatus(message || t('dataRights.deleteFailed'));
+      }
       setBusy('');
     }
   };
@@ -59,38 +71,32 @@ export default function DataRights() {
   return (
     <PublicShell>
       <article className="policy-wrap">
-        <p className="policy-kicker">Privacy controls</p>
-        <h1>Data Rights Center</h1>
-        <p className="policy-lede">
-          Review the choices available for your RaktaSetu information and submit a
-          request through the channel that fits your situation.
-        </p>
-        <p className="policy-date">Last reviewed: 15 July 2026</p>
+        <p className="policy-kicker">{t('dataRights.kicker')}</p>
+        <h1>{t('dataRights.title')}</h1>
+        <p className="policy-lede">{t('dataRights.lede')}</p>
+        <p className="policy-date">{t('dataRights.reviewed')}</p>
 
-        <div className="policy-callout">
-          Rights vary by jurisdiction and can have legal exceptions. RaktaSetu must
-          verify the requester's identity before acting on a request submitted by email.
-        </div>
+        <div className="policy-callout">{t('dataRights.verifyNote')}</div>
 
         <section className="policy-section">
-          <h2>Available requests</h2>
+          <h2>{t('dataRights.availableTitle')}</h2>
           <ul>
-            <li><strong>Access and export:</strong> receive a readable copy of account and activity data associated with your signed-in account.</li>
-            <li><strong>Correction:</strong> update profile information in the app or ask for help correcting a record you cannot edit.</li>
-            <li><strong>Deletion:</strong> anonymize direct account identifiers and disable the account, subject to valid retention requirements.</li>
-            <li><strong>Restriction or objection:</strong> ask the operator to review whether a particular use should stop or be limited.</li>
-            <li><strong>Consent withdrawal:</strong> stop optional processing where consent is the applicable legal basis. Withdrawal does not make earlier processing unlawful.</li>
-            <li><strong>Complaint:</strong> contact the relevant privacy or data protection authority when applicable.</li>
+            <li><strong>{t('dataRights.accessLabel')}</strong> {t('dataRights.accessBody')}</li>
+            <li><strong>{t('dataRights.correctionLabel')}</strong> {t('dataRights.correctionBody')}</li>
+            <li><strong>{t('dataRights.deletionLabel')}</strong> {t('dataRights.deletionBody')}</li>
+            <li><strong>{t('dataRights.restrictionLabel')}</strong> {t('dataRights.restrictionBody')}</li>
+            <li><strong>{t('dataRights.consentLabel')}</strong> {t('dataRights.consentBody')}</li>
+            <li><strong>{t('dataRights.complaintLabel')}</strong> {t('dataRights.complaintBody')}</li>
           </ul>
         </section>
 
         <section className="policy-section">
-          <h2>Your account tools</h2>
+          <h2>{t('dataRights.toolsTitle')}</h2>
           {user ? (
             <>
               <p>
-                Signed in as <strong>{user.email || user.phone || user.name}</strong>.
-                Exports are created for this authenticated account only.
+                {t('dataRights.signedInAs')} <strong>{user.email || user.phone || user.name}</strong>.
+                {' '}{t('dataRights.exportScope')}
               </p>
               <div className="rights-actions">
                 <button
@@ -99,7 +105,7 @@ export default function DataRights() {
                   disabled={Boolean(busy)}
                   onClick={downloadExport}
                 >
-                  {busy === 'export' ? 'Preparing export…' : 'Download my data'}
+                  {busy === 'export' ? t('dataRights.exporting') : t('dataRights.download')}
                 </button>
                 <button
                   className="rights-action rights-action--danger"
@@ -107,19 +113,44 @@ export default function DataRights() {
                   disabled={Boolean(busy)}
                   onClick={() => setShowDelete((value) => !value)}
                 >
-                  Request account deletion
+                  {t('dataRights.requestDelete')}
                 </button>
               </div>
               {showDelete ? (
                 <div className="policy-callout" role="group" aria-labelledby="delete-account-title">
-                  <h3 id="delete-account-title">Confirm account deletion</h3>
-                  <p>
-                    This disables the account, removes direct profile identifiers, clears
-                    donor matching details, and signs you out. Some integrity or legal
-                    records may remain in de-identified or restricted form.
-                  </p>
+                  <h3 id="delete-account-title">{t('dataRights.confirmTitle')}</h3>
+                  <ul>
+                    <li>{t('dataRights.consequenceDeactivate')}</li>
+                    <li>{t('dataRights.consequenceMatching')}</li>
+                    <li>{t('dataRights.consequenceRestore')}</li>
+                    <li>{t('dataRights.consequenceRetain')}</li>
+                    <li>{t('dataRights.consequenceBlockers')}</li>
+                  </ul>
+                  <label htmlFor="delete-password">{t('dataRights.passwordLabel')}</label>
+                  <input
+                    id="delete-password"
+                    className="rs-field"
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    autoComplete="current-password"
+                    style={{
+                      width: '100%',
+                      minHeight: 48,
+                      marginTop: 8,
+                      marginBottom: 12,
+                      padding: '12px 14px',
+                      border: '1px solid #c9bdb6',
+                      borderRadius: 8,
+                      font: 'inherit',
+                      background: '#fff',
+                      color: '#17151A',
+                      colorScheme: 'light',
+                      caretColor: '#17151A',
+                    }}
+                  />
                   <label htmlFor="delete-confirmation">
-                    Type <strong>DELETE</strong> to continue.
+                    {t('dataRights.typeDelete')} <strong>DELETE</strong> {t('dataRights.toContinue')}
                   </label>
                   <input
                     id="delete-confirmation"
@@ -149,7 +180,7 @@ export default function DataRights() {
                     onClick={deleteAccount}
                     style={{ width: '100%', marginTop: 12 }}
                   >
-                    {busy === 'delete' ? 'Deleting account…' : 'Delete my account'}
+                    {busy === 'delete' ? t('dataRights.deleting') : t('dataRights.deleteCta')}
                   </button>
                 </div>
               ) : null}
@@ -157,24 +188,19 @@ export default function DataRights() {
             </>
           ) : (
             <p>
-              <Link to="/login">Sign in</Link> to download your account export or use
-              the authenticated deletion tool. You can also submit a request by email.
+              <Link to="/login">{t('dataRights.signIn')}</Link> {t('dataRights.signInHint')}
             </p>
           )}
         </section>
 
         <section className="policy-section">
-          <h2>Email request workflow</h2>
+          <h2>{t('dataRights.emailTitle')}</h2>
           <ol>
-            <li>Email <a href="mailto:privacy@raktasetu.org">privacy@raktasetu.org</a> from the address associated with your account when possible.</li>
-            <li>State the request type and the account phone or email. Do not send a password, authentication token, government ID number, or medical document.</li>
-            <li>The operator should acknowledge the request, verify identity proportionately, evaluate legal exceptions, and respond within the applicable deadline.</li>
+            <li>{t('dataRights.emailStep1')}</li>
+            <li>{t('dataRights.emailStep2')}</li>
+            <li>{t('dataRights.emailStep3')}</li>
           </ol>
-          <p>
-            The operating organization must adopt this workflow, monitor the inbox, and
-            document request outcomes. The application provides the entry point but
-            cannot establish those operational procedures by itself.
-          </p>
+          <p>{t('dataRights.emailFootnote')}</p>
         </section>
       </article>
     </PublicShell>

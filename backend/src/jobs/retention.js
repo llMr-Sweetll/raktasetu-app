@@ -1,6 +1,7 @@
 import pg from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import { postgresSslConfig } from '../db/ssl.js';
+import { anonymizeExpiredDeletions } from '../services/accountDeletionService.js';
 
 const connectionString = process.env.RETENTION_DATABASE_URL ||
   (process.env.NODE_ENV !== 'production' && !process.env.RAILWAY_ENVIRONMENT ? process.env.DATABASE_URL : null);
@@ -76,6 +77,12 @@ try {
       if (batch.rowCount < 500) break;
     }
     console.log(`redemptions: expired ${expiredRedemptions}`);
+
+    // DPDP: after 30-day grace, anonymize deactivated accounts in place.
+    // Donation rows, credits ledger, and audit_logs keep the anonymized user id
+    // for blood-bank traceability (see docs/security/security-controls.md).
+    const anonymized = await anonymizeExpiredDeletions(client);
+    console.log(`account_deletions: anonymized ${anonymized}`);
 
     await client.query('SELECT pg_advisory_unlock(78254103)');
   }

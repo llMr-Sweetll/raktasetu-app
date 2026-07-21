@@ -85,6 +85,24 @@ test('hospital donor visibility under RLS', { skip: !hasTestDatabase }, async ()
       assert.equal(emailLeak.rowCount, 0);
     });
 
+    await client.query(
+      `UPDATE users SET account_status = 'deactivated', deleted_at = NOW(), is_on_call = false
+       WHERE id = $1`,
+      [donorId],
+    );
+    await withHospitalContext(client, { hospitalUserId, hospitalId }, async () => {
+      const hidden = await client.query(
+        'SELECT id FROM hospital_visible_on_call_donors($1)',
+        [['O+', 'O-']],
+      );
+      assert.equal(hidden.rows.some((row) => row.id === donorId), false, 'deactivated donors must leave matching');
+    });
+    await client.query(
+      `UPDATE users SET account_status = 'active', deleted_at = NULL, is_on_call = true
+       WHERE id = $1`,
+      [donorId],
+    );
+
     await client.query('UPDATE users SET sex = $1 WHERE id = $2', ['male', donorId]);
     await withHospitalContext(client, { hospitalUserId, hospitalId }, async () => {
       await client.query('SELECT hospital_record_donor_donation($1)', [donorId]);

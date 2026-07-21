@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams, useLocation } from 'react-router-dom';
 import { Phone, Lock, Droplet } from 'lucide-react';
 import { T } from '../theme.js';
 import Btn from '../components/Btn.jsx';
@@ -28,13 +28,16 @@ function loadGisScript() {
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const authRole = parseAuthRole(searchParams);
   const isHospital = authRole === 'hospital';
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, restoreAccount } = useAuth();
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [info, setInfo] = useState(location.state?.accountDeleted ? t('login.deletedNotice') : '');
+  const [restorable, setRestorable] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleReady, setGoogleReady] = useState(false);
   const googleBtnRef = useRef(null);
@@ -77,7 +80,13 @@ export default function Login() {
               if (result.flow === 'onboarding_required') navigateRef.current('/google-onboarding');
               if (result.flow === 'link_required') navigateRef.current('/account-link');
             } catch (_err) {
-              setError(_err.response?.data?.error?.message || _err.message || 'Google Sign-In failed');
+              const code = _err.response?.data?.error?.code;
+              if (code === 'ACCOUNT_RESTORABLE') {
+                setRestorable(true);
+                setError(t('login.restorable'));
+              } else {
+                setError(_err.response?.data?.error?.message || _err.message || 'Google Sign-In failed');
+              }
             } finally {
               setLoading(false);
             }
@@ -104,16 +113,31 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setInfo('');
     if (!phone || !password) { setError(t('login.missingFields')); return; }
     setLoading(true);
     try {
+      if (restorable) {
+        const user = await restoreAccount(phone, password);
+        navigate(roleHome(user));
+        return;
+      }
       const user = await login(phone, password);
-      // Destination comes from the actual role. Ignore query redirects.
       navigate(roleHome(user));
     } catch (_err) {
       const code = _err.response?.data?.error?.code;
       if (code === 'HOSPITAL_APPROVAL_PENDING') {
         navigate('/hospital-pending');
+        return;
+      }
+      if (code === 'ACCOUNT_RESTORABLE') {
+        setRestorable(true);
+        setError(t('login.restorable'));
+        return;
+      }
+      if (code === 'ACCOUNT_GONE') {
+        setRestorable(false);
+        setError(t('login.accountGone'));
         return;
       }
       setError(_err.response?.data?.error?.message || _err.response?.data?.error || t('login.failed'));
@@ -215,13 +239,24 @@ export default function Login() {
             </div>
           </div>
           <h1 style={{ fontFamily: display, fontWeight: 800, fontSize: 22, textAlign: 'center', color: '#F2E8E6', margin: '0 0 4px' }}>
-            {isHospital ? t('login.hospitalTitle') : t('login.donorTitle')}
+            {restorable ? t('login.restoreTitle') : (isHospital ? t('login.hospitalTitle') : t('login.donorTitle'))}
           </h1>
           <p style={{ fontFamily: body, fontSize: 13, color: '#A89B96', textAlign: 'center', margin: '0 0 22px' }}>
-            {isHospital ? t('login.hospitalSubtitle') : t('login.donorSubtitle')}
+            {restorable
+              ? t('login.restoreSubtitle')
+              : (isHospital ? t('login.hospitalSubtitle') : t('login.donorSubtitle'))}
           </p>
 
           <form onSubmit={handleSubmit}>
+            {info && !error ? (
+              <div style={{
+                background: 'rgba(61,189,138,0.12)', border: '1px solid rgba(61,189,138,0.35)',
+                borderRadius: 10, padding: '10px 14px', marginBottom: 14,
+                fontFamily: body, fontSize: 13, color: '#B7EBD4',
+              }} role="status">
+                {info}
+              </div>
+            ) : null}
             {error && (
               <div style={{
                 background: 'rgba(200,16,46,0.15)', border: '1px solid rgba(200,16,46,0.4)',
@@ -261,10 +296,28 @@ export default function Login() {
                 }}
               />
             </div>
-            <Btn kind="primary" full disabled={loading}>{loading ? t('login.signingIn') : t('login.submit')}</Btn>
+            <Btn kind="primary" full disabled={loading}>
+              {loading
+                ? (restorable ? t('login.restoring') : t('login.signingIn'))
+                : (restorable ? t('login.restoreSubmit') : t('login.submit'))}
+            </Btn>
           </form>
 
-          {!isHospital && GOOGLE_CLIENT_ID ? (
+          {restorable ? (
+            <button
+              type="button"
+              onClick={() => { setRestorable(false); setError(''); }}
+              style={{
+                marginTop: 12, width: '100%', background: 'none', border: 'none', cursor: 'pointer',
+                fontFamily: body, fontSize: 13, color: '#A89B96', textDecoration: 'underline',
+                minHeight: 44,
+              }}
+            >
+              {t('login.backToSignIn')}
+            </button>
+          ) : null}
+
+          {!isHospital && !restorable && GOOGLE_CLIENT_ID ? (
             <div style={{ marginTop: 18 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 12px' }}>
                 <div style={{ flex: 1, height: 1, background: 'rgba(242,232,230,0.15)' }} />
