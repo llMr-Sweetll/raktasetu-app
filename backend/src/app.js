@@ -13,6 +13,7 @@ import adminRoutes from './routes/admin.js';
 import pushRoutes from './routes/push.js';
 import { applyPrivacyHeaders, buildHelmetOptions } from './security.js';
 import { apiRateLimitKey } from './middleware/rateLimitKey.js';
+import { createCanonicalRedirectMiddleware } from './middleware/canonicalRedirect.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ORIGINS = ['http://localhost:5173', 'http://localhost:3001'];
@@ -53,6 +54,8 @@ export function createApp({ env = process.env } = {}) {
   const allowedOrigins = buildAllowedOrigins(env);
 
   app.set('trust proxy', 1);
+  // Off by default: set CANONICAL_ORIGIN (e.g. https://raktasetu.in) at cutover to 301 HTML pages.
+  app.use(createCanonicalRedirectMiddleware(env));
   app.use(helmet(buildHelmetOptions(isProduction)));
   app.use(applyPrivacyHeaders);
   app.use(cors({

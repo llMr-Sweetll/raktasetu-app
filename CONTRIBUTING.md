@@ -4,7 +4,7 @@
 
 - Canonical remote: `https://github.com/Chandrashekhar-Hegde/raktasetu-app.git`
 - Default branch: `main`
-- Live MVP: https://raktasetu-production.up.railway.app/
+- Live MVP: https://raktasetu-production.up.railway.app/ (cutover target: https://raktasetu.in/ — [docs/ops/domain-cutover.md](./docs/ops/domain-cutover.md))
 
 ## Before you push
 

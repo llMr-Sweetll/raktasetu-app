@@ -1,7 +1,8 @@
 # CI/CD
 
 Canonical remote: `https://github.com/Chandrashekhar-Hegde/raktasetu-app.git`  
-Live: https://raktasetu-production.up.railway.app/
+Live: https://raktasetu-production.up.railway.app/  
+Cutover target: https://raktasetu.in/ — [domain-cutover.md](./domain-cutover.md)
 
 ## Pipelines
 

@@ -4,6 +4,18 @@ All notable changes to RaktaSetu are documented in this file.
 
 ## [Unreleased]
 
+## [2.0.11] — 2026-07-21
+
+### Added
+
+- Domain cutover prep for `raktasetu.in`: `VITE_SITE_ORIGIN` (build-time SEO/OG/sitemap), optional `CANONICAL_ORIGIN` 301 middleware (off by default; `/api/*` + `/health` + `/socket.io/*` exempt)
+- Ops checklist: [docs/ops/domain-cutover.md](./docs/ops/domain-cutover.md)
+
+### Changed
+
+- Package / health version bumped to `2.0.11`
+- README documents Railway URL as live today and `raktasetu.in` as the cutover target
+
 ## [2.0.10] — 2026-07-21
 
 ### Added

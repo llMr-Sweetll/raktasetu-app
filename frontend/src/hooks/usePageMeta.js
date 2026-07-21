@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
-
-const ORIGIN = 'https://raktasetu-production.up.railway.app';
+import { SITE_ORIGIN } from '../siteOrigin.js';
 
 function setMeta(name, content, property = false) {
   const key = property ? 'property' : 'name';
@@ -19,7 +18,7 @@ export default function usePageMeta({ title, description, path = '/' }) {
     setMeta('description', description);
     setMeta('og:title', title, true);
     setMeta('og:description', description, true);
-    setMeta('og:url', `${ORIGIN}${path}`, true);
+    setMeta('og:url', `${SITE_ORIGIN}${path}`, true);
     setMeta('twitter:title', title);
     setMeta('twitter:description', description);
 
@@ -29,6 +28,7 @@ export default function usePageMeta({ title, description, path = '/' }) {
       canonical.rel = 'canonical';
       document.head.appendChild(canonical);
     }
-    canonical.href = path === '/' ? `${ORIGIN}/` : `${ORIGIN}/#${path}`;
+    // Web uses BrowserRouter (path URLs); native Capacitor keeps HashRouter.
+    canonical.href = path === '/' ? `${SITE_ORIGIN}/` : `${SITE_ORIGIN}${path}`;
   }, [description, path, title]);
 }

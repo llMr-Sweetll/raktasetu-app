@@ -1,9 +1,13 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { resolveSiteOriginFromEnv, siteOriginPlugin } from './vite.site-origin.js'
+
+const siteOrigin = resolveSiteOriginFromEnv(process.env)
 
 export default defineConfig({
   plugins: [
+    siteOriginPlugin(siteOrigin),
     react(),
     VitePWA({
       registerType: 'autoUpdate',

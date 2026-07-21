@@ -5,7 +5,8 @@
 
 ## Live MVP
 
-**https://raktasetu-production.up.railway.app/**
+**https://raktasetu-production.up.railway.app/**  
+Custom domain (cutover target): **https://raktasetu.in/** — see [docs/ops/domain-cutover.md](./docs/ops/domain-cutover.md). Until DNS/env cutover, prefer the Railway URL.
 
 One Railway service (`raktasetu`) hosts **both** the Express/Socket.io API and the Vite SPA (`frontend/dist` served by Express). Neon Postgres is the database. Cron service `raktasetu-retention` runs daily retention.
 
@@ -81,10 +82,11 @@ Optional Actions CLI deploy needs a Railway **Project Token** as GitHub secret `
 ### Optional: Google Sign-In
 
 1. Create an OAuth 2.0 **Web** client in [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
-2. Authorized JavaScript origins: `https://raktasetu-production.up.railway.app`, `http://localhost:5173`.
+2. Authorized JavaScript origins: `https://raktasetu-production.up.railway.app`, `https://raktasetu.in` (after cutover), `http://localhost:5173`.
 3. Set on Railway / `.env`:
    - `GOOGLE_CLIENT_ID` (backend)
    - `VITE_GOOGLE_CLIENT_ID` (same value; rebuild frontend so it is baked into the SPA)
+   - At cutover also set `VITE_SITE_ORIGIN=https://raktasetu.in` and extend `FRONTEND_ORIGINS` (see [domain-cutover.md](./docs/ops/domain-cutover.md))
 4. Without these vars the Google button is hidden and `POST /api/auth/google` returns 503 — password login still works.
 
 ### Optional: Web Push (VAPID)

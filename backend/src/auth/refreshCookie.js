@@ -11,6 +11,9 @@ export function wantsNativeRefreshBody(req) {
 }
 
 export function refreshCookieOptions(env = process.env) {
+  // Host-only cookie (no Domain attribute): scoped to the request Host only.
+  // Domain cutover to raktasetu.in does not need a Domain= change — each host keeps
+  // its own rs_refresh cookie; users sign in again on the new host after cutover.
   return {
     httpOnly: true,
     secure: isProductionEnv(env),
