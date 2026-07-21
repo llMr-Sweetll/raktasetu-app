@@ -201,5 +201,10 @@
   "metrics.approvalFailed": "Hospital approval update failed",
   "metrics.consoleLoadFailed": "Failed to load live board",
   "metrics.consoleRequests": "Requests",
-  "metrics.consoleDonations": "Donations"
+  "metrics.consoleDonations": "Donations",
+  "console.escalated": "Escalated L{level} · {km} km",
+  "console.neededByMinutes": "Needed in {n} min",
+  "console.neededByHours": "Needed in {h}h {m}m",
+  "console.neededByDays": "Needed in {n}d",
+  "console.neededByOverdue": "Past needed-by"
 }

@@ -201,5 +201,10 @@
   "metrics.approvalFailed": "ಆಸ್ಪತ್ರೆ ಅನುಮೋದನೆ ವಿಫಲ",
   "metrics.consoleLoadFailed": "ಲೈವ್ ಬೋರ್ಡ್ ಲೋಡ್ ವಿಫಲ",
   "metrics.consoleRequests": "ವಿನಂತಿಗಳು",
-  "metrics.consoleDonations": "ದಾನಗಳು"
+  "metrics.consoleDonations": "ದಾನಗಳು",
+  "console.escalated": "ವಿಸ್ತರಣೆ L{level} · {km} ಕಿ.ಮೀ",
+  "console.neededByMinutes": "{n} ನಿಮಿಷದಲ್ಲಿ ಬೇಕು",
+  "console.neededByHours": "{h}ಗಂ {m}ನಿ ನಲ್ಲಿ ಬೇಕು",
+  "console.neededByDays": "{n} ದಿನದಲ್ಲಿ ಬೇಕು",
+  "console.neededByOverdue": "ಅಗತ್ಯ ಸಮಯ ಮೀರಿದೆ"
 }

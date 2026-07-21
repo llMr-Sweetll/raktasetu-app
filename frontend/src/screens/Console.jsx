@@ -11,6 +11,29 @@ import { t } from '../i18n.js';
 const body = "'Public Sans', 'Segoe UI', system-ui, sans-serif";
 const display = "'Anek Latin', 'Segoe UI', system-ui, sans-serif";
 
+function formatNeededBy(neededBy) {
+  if (!neededBy) return null;
+  const target = new Date(neededBy);
+  if (Number.isNaN(target.getTime())) return null;
+  const diffMs = target.getTime() - Date.now();
+  if (diffMs <= 0) return t('console.neededByOverdue');
+  const totalMin = Math.ceil(diffMs / 60000);
+  if (totalMin < 60) return t('console.neededByMinutes', { n: totalMin });
+  const hours = Math.floor(totalMin / 60);
+  const minutes = totalMin % 60;
+  if (hours < 24) return t('console.neededByHours', { h: hours, m: minutes });
+  const days = Math.floor(hours / 24);
+  return t('console.neededByDays', { n: days });
+}
+
+function neededByTone(neededBy) {
+  if (!neededBy) return T.consoleMut;
+  const diffMs = new Date(neededBy).getTime() - Date.now();
+  if (diffMs <= 0) return '#E4506B';
+  if (diffMs < 60 * 60 * 1000) return '#E6B84D';
+  return T.consoleMut;
+}
+
 export default function Console() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -121,9 +144,21 @@ export default function Console() {
                       <p style={{ fontFamily: body, fontSize: 11.5, color: T.consoleMut, margin: '2px 0 0' }}>
                         Broadcast {new Date(req.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · {req.radius_km} km radius
                       </p>
+                      {req.needed_by ? (
+                        <p style={{ fontFamily: body, fontSize: 11.5, color: neededByTone(req.needed_by), margin: '2px 0 0' }}>
+                          {formatNeededBy(req.needed_by)}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
-                  <Chip tone={req.urgency === 'critical' ? 'red' : req.urgency === 'urgent' ? 'gold' : 'line'} dark>{req.urgency}</Chip>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                    <Chip tone={req.urgency === 'critical' ? 'red' : req.urgency === 'urgent' ? 'gold' : 'line'} dark>{req.urgency}</Chip>
+                    {Number(req.escalation_level) > 0 ? (
+                      <Chip tone="gold" dark>
+                        {t('console.escalated', { level: req.escalation_level, km: req.radius_km })}
+                      </Chip>
+                    ) : null}
+                  </div>
                 </div>
                 <div style={{ height: 6, borderRadius: 99, background: T.consoleLine, margin: '14px 0 8px', overflow: 'hidden' }}>
                   <div style={{ width: `${Math.min(100, (req.filled_units / req.units_needed) * 100)}%`, height: '100%', background: '#E4506B' }} />

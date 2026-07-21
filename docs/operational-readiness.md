@@ -55,6 +55,19 @@ Production cron service `raktasetu-retention` (configured 2026-07-18):
 - Do not attach the owner URL to the web service (boot refuses `MIGRATION_DATABASE_URL` there)
 - Deploy ID when first wired: `f1fe3178-b4ba-4721-816a-dcffd16380bc`
 
+## Escalation + auto-expiry
+
+Run `npm --prefix backend run escalation` every 5 minutes in a separate Railway cron service.
+
+Production cron service `raktasetu-escalation`:
+
+- GitHub source: `Chandrashekhar-Hegde/raktasetu-app` @ `main`
+- Start command: `npm --prefix backend run escalation`
+- Cron schedule: `*/5 * * * *` (every 5 minutes)
+- Variables on the cron service only: `ESCALATION_DATABASE_URL` (or reuse `RETENTION_DATABASE_URL` — Neon owner/maintenance), `NODE_ENV=production`; optional VAPID keys if push should fire from the cron
+- Advisory lock key `78254104` (distinct from retention)
+- Behavior: critical open requests with zero accepts escalate after 10 minutes (urgent: 30; scheduled: never); radius widens to max(current, 10) then max(current, 25); only newly in-range donors are notified; open requests past `needed_by` or 24h become `expired`
+
 - Expired Google onboarding records: one day after expiry.
 - Expired/revoked refresh tokens: seven/thirty days.
 - Expired token blacklist entries: one day after expiry.

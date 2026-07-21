@@ -4,6 +4,20 @@ All notable changes to RaktaSetu are documented in this file.
 
 ## [Unreleased]
 
+## [2.0.13] — 2026-07-21
+
+### Added
+
+- Request escalation cron (`npm --prefix backend run escalation`): every 5 minutes widens open critical (10 min) / urgent (30 min) requests with zero accepts — radius current → 10 → 25 km (max level 2) — and re-pings only newly in-range compatible on-call donors (deduped via prior `blood_request` notifications). Scheduled requests never escalate.
+- Auto-expiry of open requests past `needed_by` or 24 hours (`status=expired`)
+- Hospital Console escalation chip and `needed_by` countdown (en + kn)
+- Migration `last_escalated_at` on `blood_requests`
+- Ops: Railway cron service `raktasetu-escalation` (mirrors retention; see operational-readiness)
+
+### Changed
+
+- Package / health version bumped to `2.0.13`
+
 ## [2.0.12] — 2026-07-21
 
 ### Changed

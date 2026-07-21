@@ -1,6 +1,6 @@
 {
   "name": "raktasetu-backend",
-  "version": "2.0.11",
+  "version": "2.0.13",
   "description": "RaktaSetu Blood Donation Platform API",
   "main": "src/server.js",
   "type": "module",
@@ -15,6 +15,7 @@
     "db:test:migrate": "NODE_ENV=test node scripts/migrate.js",
     "db:test:fixtures": "NODE_ENV=test node scripts/seed-fixtures.js",
     "retention": "node src/jobs/retention.js",
+    "escalation": "node src/jobs/escalation.js",
     "lint": "eslint src tests scripts"
   },
   "dependencies": {
