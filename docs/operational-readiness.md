@@ -49,6 +49,7 @@ Run `npm --prefix backend run retention` daily in a separate Railway cron servic
 Production cron service `raktasetu-retention` (configured 2026-07-18):
 
 - GitHub source: `Chandrashekhar-Hegde/raktasetu-app` @ `main`
+- Config-as-Code file: `/railway.retention.toml` (must not use root `railway.toml` or the cron starts the API)
 - Start command: `npm --prefix backend run retention`
 - Cron schedule: `0 3 * * *` (daily 03:00 UTC); next run shown in Railway as `nextCronRunAt`
 - Variables on the cron service only: `RETENTION_DATABASE_URL` (Neon owner/maintenance), `NODE_ENV=production`
@@ -62,11 +63,13 @@ Run `npm --prefix backend run escalation` every 5 minutes in a separate Railway 
 Production cron service `raktasetu-escalation`:
 
 - GitHub source: `Chandrashekhar-Hegde/raktasetu-app` @ `main`
+- Config-as-Code file: `/railway.escalation.toml` (must not use root `railway.toml` or the cron starts the API)
 - Start command: `npm --prefix backend run escalation`
 - Cron schedule: `*/5 * * * *` (every 5 minutes)
 - Variables on the cron service only: `ESCALATION_DATABASE_URL` (or reuse `RETENTION_DATABASE_URL` — Neon owner/maintenance), `NODE_ENV=production`; optional VAPID keys if push should fire from the cron
 - Advisory lock key `78254104` (distinct from retention)
 - Behavior: critical open requests with zero accepts escalate after 10 minutes (urgent: 30; scheduled: never); radius widens to max(current, 10) then max(current, 25); only newly in-range donors are notified; open requests past `needed_by` or 24h become `expired`
+- Service ID: `22a1ce72-fbca-4a16-b294-6298f4ce1613`
 
 - Expired Google onboarding records: one day after expiry.
 - Expired/revoked refresh tokens: seven/thirty days.

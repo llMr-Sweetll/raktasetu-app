@@ -1,0 +1,10 @@
+# Cron-only Railway config for raktasetu-escalation.
+# Point this service's Config-as-Code path to /railway.escalation.toml
+# so root railway.toml startCommand does not start the API.
+
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "npm --prefix backend run escalation"
+restartPolicyType = "never"
